@@ -1,4 +1,4 @@
-module logsight-filebeat
+module github.com/aiops/logsight-filebeat
 
 go 1.17
 
