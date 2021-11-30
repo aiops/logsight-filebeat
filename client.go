@@ -137,7 +137,7 @@ func (c *Client) Publish(_ context.Context, batch publisher.Batch) error {
 	}
 	batch.ACK()
 
-	fmt.Sprintf("Processes %v messages\n", processed)
+	log.Info(fmt.Sprintf("Processes %v messages\n", processed))
 
 	return nil
 }

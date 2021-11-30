@@ -72,7 +72,7 @@ func MakeLogsightAPI(
 			ContentType:      config.ContentType,
 			Format:           config.Format,
 		})
-		log.Info(fmt.Sprintf("Final host URL: %v" + hostURL))
+		log.Info(fmt.Sprintf("Final host URL: %v", hostURL))
 
 		if err != nil {
 			return outputs.Fail(err)
