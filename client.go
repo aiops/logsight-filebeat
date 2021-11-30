@@ -1,4 +1,4 @@
-package logsight_filebeat
+package logsight
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/elastic/beats/v7/libbeat/outputs"
 	"github.com/elastic/beats/v7/libbeat/outputs/outil"
 	"github.com/elastic/beats/v7/libbeat/publisher"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"time"
@@ -108,6 +109,7 @@ func NewClient(s ClientSettings) (*Client, error) {
 
 // Connect establishes a connection to the clients sink.
 func (c *Client) Connect() error {
+	log.Info(fmt.Sprintf("Connected"))
 	c.connected = true
 	return nil
 }
@@ -124,6 +126,7 @@ func (c *Client) String() string {
 
 // Publish sends events to the clients sink.
 func (c *Client) Publish(_ context.Context, batch publisher.Batch) error {
+	log.Info("Publish")
 	st := c.settings.Observer
 	events := batch.Events()
 	st.NewBatch(len(events))

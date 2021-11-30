@@ -1,4 +1,4 @@
-package logsight_filebeat
+package logsight
 
 import (
 	"github.com/elastic/beats/v7/libbeat/common/transport/tlscommon"

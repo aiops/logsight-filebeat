@@ -1,17 +1,21 @@
-package logsight_filebeat
+package logsight
 
 import (
-	"github.com/elastic/beats/v7/libbeat/beat"
+	"fmt"
 	"github.com/elastic/beats/v7/libbeat/common"
 	"github.com/elastic/beats/v7/libbeat/common/transport/tlscommon"
 	"github.com/elastic/beats/v7/libbeat/outputs"
-
 	log "github.com/sirupsen/logrus"
 	"net/url"
 	"strings"
 )
 
+import (
+	"github.com/elastic/beats/v7/libbeat/beat"
+)
+
 func init() {
+	log.Info("Registering logsight to outputs.")
 	outputs.RegisterType("logsight", MakeLogsightAPI)
 }
 
@@ -46,10 +50,10 @@ func MakeLogsightAPI(
 	}
 	clients := make([]outputs.NetworkClient, len(hosts))
 	for i, host := range hosts {
-		log.Info("Making client for host: %v", host)
+		log.Info(fmt.Sprintf("Making client for host: %v", host))
 		hostURL, err := common.MakeURL(config.Protocol, config.Path, host, 80)
 		if err != nil {
-			log.Error("Invalid host param set: %v, Error: %v", host, err)
+			log.Error(fmt.Sprintf("Invalid host param set: %v, Error: %v", host, err))
 			return outputs.Fail(err)
 		}
 		var client outputs.NetworkClient
@@ -68,7 +72,7 @@ func MakeLogsightAPI(
 			ContentType:      config.ContentType,
 			Format:           config.Format,
 		})
-		// client.log.Info("Final host URL: " + hostURL)
+		log.Info(fmt.Sprintf("Final host URL: %v" + hostURL))
 
 		if err != nil {
 			return outputs.Fail(err)
@@ -76,6 +80,7 @@ func MakeLogsightAPI(
 		client = outputs.WithBackoff(client, config.Backoff.Init, config.Backoff.Max)
 		clients[i] = client
 	}
+	log.Info(fmt.Sprintf("Created %v clients", len(clients)))
 	return outputs.SuccessNet(config.LoadBalance, config.BatchSize, config.MaxRetries, clients)
 }
 

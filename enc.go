@@ -1,4 +1,4 @@
-package logsight_filebeat
+package logsight
 
 import (
 	"bytes"
