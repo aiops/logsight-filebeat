@@ -1,4 +1,4 @@
-package tmp
+package logsight
 
 import (
 	"bytes"
@@ -27,6 +27,10 @@ type bulkWriter interface {
 	AddRaw(raw interface{}) error
 }
 
+type RawEncoder struct {
+	Buf *bytes.Buffer
+}
+
 type JsonEncoder struct {
 	Buf *bytes.Buffer
 }
@@ -43,6 +47,55 @@ type gzipEncoder struct {
 type gzipLinesEncoder struct {
 	buf  *bytes.Buffer
 	gzip *gzip.Writer
+}
+
+func NewRawEncoder(buf *bytes.Buffer) *RawEncoder {
+	if buf == nil {
+		buf = bytes.NewBuffer(nil)
+	}
+	return &RawEncoder{buf}
+}
+
+func (b *RawEncoder) Reset() {
+	b.Buf.Reset()
+}
+
+func (b *RawEncoder) AddHeader(header *http.Header, contentType string) {
+	if contentType == "" {
+		header.Add("Content-Type", "application/json; charset=UTF-8")
+	} else {
+		header.Add("Content-Type", contentType)
+	}
+}
+
+func (b *RawEncoder) Reader() io.Reader {
+	return b.Buf
+}
+
+func (b *RawEncoder) Marshal(obj interface{}) error {
+	b.Reset()
+	enc := json.NewEncoder(b.Buf)
+	return enc.Encode(obj)
+}
+
+func (b *RawEncoder) AddRaw(raw interface{}) error {
+	enc := json.NewEncoder(b.Buf)
+	return enc.Encode(raw)
+}
+
+func (b *RawEncoder) Add(meta, obj interface{}) error {
+	enc := json.NewEncoder(b.Buf)
+	pos := b.Buf.Len()
+
+	if err := enc.Encode(meta); err != nil {
+		b.Buf.Truncate(pos)
+		return err
+	}
+	if err := enc.Encode(obj); err != nil {
+		b.Buf.Truncate(pos)
+		return err
+	}
+	return nil
 }
 
 func NewJSONEncoder(buf *bytes.Buffer) *JsonEncoder {
