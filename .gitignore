@@ -46,6 +46,8 @@ _testmain.go
 /test/run.out
 /test/times.out
 
+logsight-filebeat
+
 .idea/
 *.pdf
 .vscode/

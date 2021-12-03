@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/elastic/beats/v7 v7.15.2
 	github.com/sirupsen/logrus v1.8.1
+	gotest.tools/gotestsum v0.6.0
 )
 
 require (

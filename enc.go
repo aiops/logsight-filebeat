@@ -9,7 +9,7 @@ import (
 	"reflect"
 )
 
-type bodyEncoder interface {
+type encoder interface {
 	bulkBodyEncoder
 	Reader() io.Reader
 	Marshal(doc interface{}) error
@@ -27,12 +27,16 @@ type bulkWriter interface {
 	AddRaw(raw interface{}) error
 }
 
-type jsonEncoder struct {
-	buf *bytes.Buffer
+type RawEncoder struct {
+	Buf *bytes.Buffer
 }
 
-type jsonLinesEncoder struct {
-	buf *bytes.Buffer
+type JsonEncoder struct {
+	Buf *bytes.Buffer
+}
+
+type JsonLinesEncoder struct {
+	Buf *bytes.Buffer
 }
 
 type gzipEncoder struct {
@@ -45,18 +49,18 @@ type gzipLinesEncoder struct {
 	gzip *gzip.Writer
 }
 
-func newJSONEncoder(buf *bytes.Buffer) *jsonEncoder {
+func NewRawEncoder(buf *bytes.Buffer) *RawEncoder {
 	if buf == nil {
 		buf = bytes.NewBuffer(nil)
 	}
-	return &jsonEncoder{buf}
+	return &RawEncoder{buf}
 }
 
-func (b *jsonEncoder) Reset() {
-	b.buf.Reset()
+func (b *RawEncoder) Reset() {
+	b.Buf.Reset()
 }
 
-func (b *jsonEncoder) AddHeader(header *http.Header, contentType string) {
+func (b *RawEncoder) AddHeader(header *http.Header, contentType string) {
 	if contentType == "" {
 		header.Add("Content-Type", "application/json; charset=UTF-8")
 	} else {
@@ -64,48 +68,97 @@ func (b *jsonEncoder) AddHeader(header *http.Header, contentType string) {
 	}
 }
 
-func (b *jsonEncoder) Reader() io.Reader {
-	return b.buf
+func (b *RawEncoder) Reader() io.Reader {
+	return b.Buf
 }
 
-func (b *jsonEncoder) Marshal(obj interface{}) error {
+func (b *RawEncoder) Marshal(obj interface{}) error {
 	b.Reset()
-	enc := json.NewEncoder(b.buf)
+	enc := json.NewEncoder(b.Buf)
 	return enc.Encode(obj)
 }
 
-func (b *jsonEncoder) AddRaw(raw interface{}) error {
-	enc := json.NewEncoder(b.buf)
+func (b *RawEncoder) AddRaw(raw interface{}) error {
+	enc := json.NewEncoder(b.Buf)
 	return enc.Encode(raw)
 }
 
-func (b *jsonEncoder) Add(meta, obj interface{}) error {
-	enc := json.NewEncoder(b.buf)
-	pos := b.buf.Len()
+func (b *RawEncoder) Add(meta, obj interface{}) error {
+	enc := json.NewEncoder(b.Buf)
+	pos := b.Buf.Len()
 
 	if err := enc.Encode(meta); err != nil {
-		b.buf.Truncate(pos)
+		b.Buf.Truncate(pos)
 		return err
 	}
 	if err := enc.Encode(obj); err != nil {
-		b.buf.Truncate(pos)
+		b.Buf.Truncate(pos)
 		return err
 	}
 	return nil
 }
 
-func newJSONLinesEncoder(buf *bytes.Buffer) *jsonLinesEncoder {
+func NewJSONEncoder(buf *bytes.Buffer) *JsonEncoder {
 	if buf == nil {
 		buf = bytes.NewBuffer(nil)
 	}
-	return &jsonLinesEncoder{buf}
+	return &JsonEncoder{buf}
 }
 
-func (b *jsonLinesEncoder) Reset() {
-	b.buf.Reset()
+func (b *JsonEncoder) Reset() {
+	b.Buf.Reset()
 }
 
-func (b *jsonLinesEncoder) AddHeader(header *http.Header, contentType string) {
+func (b *JsonEncoder) AddHeader(header *http.Header, contentType string) {
+	if contentType == "" {
+		header.Add("Content-Type", "application/json; charset=UTF-8")
+	} else {
+		header.Add("Content-Type", contentType)
+	}
+}
+
+func (b *JsonEncoder) Reader() io.Reader {
+	return b.Buf
+}
+
+func (b *JsonEncoder) Marshal(obj interface{}) error {
+	b.Reset()
+	enc := json.NewEncoder(b.Buf)
+	return enc.Encode(obj)
+}
+
+func (b *JsonEncoder) AddRaw(raw interface{}) error {
+	enc := json.NewEncoder(b.Buf)
+	return enc.Encode(raw)
+}
+
+func (b *JsonEncoder) Add(meta, obj interface{}) error {
+	enc := json.NewEncoder(b.Buf)
+	pos := b.Buf.Len()
+
+	if err := enc.Encode(meta); err != nil {
+		b.Buf.Truncate(pos)
+		return err
+	}
+	if err := enc.Encode(obj); err != nil {
+		b.Buf.Truncate(pos)
+		return err
+	}
+	return nil
+}
+
+func newJSONLinesEncoder(buf *bytes.Buffer) *JsonLinesEncoder {
+	if buf == nil {
+		buf = bytes.NewBuffer(nil)
+	}
+	return &JsonLinesEncoder{buf}
+}
+
+func (b *JsonLinesEncoder) Reset() {
+	b.Buf.Reset()
+}
+
+func (b *JsonLinesEncoder) AddHeader(header *http.Header, contentType string) {
 	if contentType == "" {
 		header.Add("Content-Type", "application/x-ndjson; charset=UTF-8")
 	} else {
@@ -113,17 +166,17 @@ func (b *jsonLinesEncoder) AddHeader(header *http.Header, contentType string) {
 	}
 }
 
-func (b *jsonLinesEncoder) Reader() io.Reader {
-	return b.buf
+func (b *JsonLinesEncoder) Reader() io.Reader {
+	return b.Buf
 }
 
-func (b *jsonLinesEncoder) Marshal(obj interface{}) error {
+func (b *JsonLinesEncoder) Marshal(obj interface{}) error {
 	b.Reset()
 	return b.AddRaw(obj)
 }
 
-func (b *jsonLinesEncoder) AddRaw(obj interface{}) error {
-	enc := json.NewEncoder(b.buf)
+func (b *JsonLinesEncoder) AddRaw(obj interface{}) error {
+	enc := json.NewEncoder(b.Buf)
 
 	// single event
 	if reflect.TypeOf(obj).Kind() == reflect.Map {
@@ -140,15 +193,15 @@ func (b *jsonLinesEncoder) AddRaw(obj interface{}) error {
 	return nil
 }
 
-func (b *jsonLinesEncoder) Add(meta, obj interface{}) error {
-	pos := b.buf.Len()
+func (b *JsonLinesEncoder) Add(meta, obj interface{}) error {
+	pos := b.Buf.Len()
 
 	if err := b.AddRaw(meta); err != nil {
-		b.buf.Truncate(pos)
+		b.Buf.Truncate(pos)
 		return err
 	}
 	if err := b.AddRaw(obj); err != nil {
-		b.buf.Truncate(pos)
+		b.Buf.Truncate(pos)
 		return err
 	}
 
