@@ -19,45 +19,42 @@ import (
 
 // Client struct
 type Client struct {
-	Publisher AppPublisher
-	appName   string
-	log       *logp.Logger
-	observer  outputs.Observer
+	logBatchMapper LogBatchMapper
+	observer       outputs.Observer
 }
 
 type eventRaw map[string]json.RawMessage
 
 // NewClient instantiate a client.
-func NewClient(cc ClientConfig, hostURL *url.URL, observer outputs.Observer, log *logp.Logger) (*Client, error) {
+func NewClient(clientConfig ClientConfig, hostURL *url.URL, observer outputs.Observer, logger *logp.Logger) (*Client, error) {
 	proxy := http.ProxyFromEnvironment
-	if cc.Proxy != "" {
-		proxyURL, err := parseProxyURL(cc.Proxy)
+	if clientConfig.Proxy != "" {
+		proxyURL, err := parseProxyURL(clientConfig.Proxy)
 		if err != nil {
 			return nil, err
 		}
 		if proxyURL != nil {
-			log.Infof("using proxy URL: %v", proxyURL)
+			logger.Infof("using proxy URL: %v", proxyURL)
 		}
 		proxy = http.ProxyURL(proxyURL)
 	}
-	// logger.Info("HTTP URL: %s", s.URL)
 	var dialer, tlsDialer transport.Dialer
 
-	dialer = transport.NetDialer(cc.Timeout)
+	dialer = transport.NetDialer(clientConfig.Timeout)
 	tlsConfig, err := tlscommon.LoadTLSConfig(nil)
 	if err != nil {
 		return nil, err
 	}
-	tlsDialer = transport.TLSDialer(dialer, tlsConfig, cc.Timeout)
+	tlsDialer = transport.TLSDialer(dialer, tlsConfig, clientConfig.Timeout)
 
 	if st := observer; st != nil {
 		dialer = transport.StatsDialer(dialer, st)
 		tlsDialer = transport.StatsDialer(tlsDialer, st)
 	}
-	logsightAPI := Logsight{
+	logsightAPI := &Logsight{
 		baseURL:  hostURL,
-		email:    cc.Email,
-		password: cc.Password,
+		email:    clientConfig.Email,
+		password: clientConfig.Password,
 
 		request: Request{
 			encoder: NewJSONEncoder(nil),
@@ -69,41 +66,43 @@ func NewClient(cc ClientConfig, hostURL *url.URL, observer outputs.Observer, log
 				},
 				Timeout: 60 * time.Second,
 			},
-			log: log,
 		},
-		log: log,
+		logger: logger,
 	}
 	if err := logsightAPI.Init(); err != nil {
 		return nil, err
 	}
 
+	// Only accept valid regex expressions
+	_, err = regexp.Compile(clientConfig.App.KeyRegexMatcher)
+	if err != nil {
+		return nil, err
+	}
+
 	var publisher AppPublisher
-	if cc.App.Key != "" {
+	if clientConfig.App.Key != "" {
 		publisher = &MultiAppPublisher{
 			SingleAppPublisher: SingleAppPublisher{
 				LogsightAPI: logsightAPI,
-				appName:     prepareAppName(cc.App.Name),
 			},
-			autoCreateApp: cc.App.AutoCreate,
-			key:           cc.App.Key,
+			autoCreateApp: clientConfig.App.AutoCreate,
 			existentApps:  make(map[string]struct{}),
 		}
 	} else {
 		publisher = &SingleAppPublisher{
 			LogsightAPI: logsightAPI,
-			appName:     prepareAppName(cc.App.Name),
 		}
-		if cc.App.AutoCreate {
-			if err := logsightAPI.CreateApp(cc.App.Name); err != nil {
-				log.Warnf("failed to create application ")
+		if clientConfig.App.AutoCreate {
+			if err := logsightAPI.CreateApp(clientConfig.App.Name); err != nil {
+				logger.Warnf("failed to create application ")
 			}
 		}
 	}
 
 	client := &Client{
 		Publisher: publisher,
-		log:       log,
-		appName:   cc.App.Name,
+		logp:      logger,
+		appName:   clientConfig.App.Name,
 		observer:  observer,
 	}
 
@@ -146,11 +145,11 @@ func (c *Client) Publish(_ context.Context, batch publisher.Batch) error {
 	appLogs := c.Publisher.groupByApp(logs)
 	for app, logs := range appLogs {
 		if err := c.Publisher.send(logs, app); err != nil {
-			c.log.Warnf("%v", err)
+			c.logp.Warnf("%v", err)
 			failedCnt += len(logs)
-			c.log.Infof("failed to transmit %v messages to app %v", len(logs), app)
+			c.logp.Infof("failed to transmit %v messages to app %v", len(logs), app)
 		} else {
-			c.log.Infof("successfully transmitted %v messages to app %v", len(logs), app)
+			c.logp.Infof("successfully transmitted %v messages to app %v", len(logs), app)
 		}
 	}
 
@@ -161,23 +160,21 @@ func (c *Client) Publish(_ context.Context, batch publisher.Batch) error {
 	return nil
 }
 
-type AppPublisher interface {
+type LogsightPublisher interface {
 	groupByApp(logs []common.MapStr) map[string][]string
 	send(logs []string, app string) error
 }
 
 type SingleAppPublisher struct {
-	LogsightAPI Logsight
-	appName     string
+	LogsightAPI           *Logsight
+	applicationNameMapper *Mapper
 }
 
 func (sap *SingleAppPublisher) groupByApp(logs []common.MapStr) map[string][]string {
-	app := sap.appName
-
 	appLogs := make(map[string][]string)
-	appLogs[app] = make([]string, len(logs))
 	for i := range logs {
-		appLogs[app][i] = fmt.Sprintf("%v", logs[i])
+		// HIER
+		appLogs["app"][i] = fmt.Sprintf("%v", logs[i])
 	}
 
 	return appLogs
@@ -194,27 +191,24 @@ func (sap *SingleAppPublisher) send(logs []string, app string) error {
 type MultiAppPublisher struct {
 	SingleAppPublisher
 	autoCreateApp bool
-	key           string
 	existentApps  map[string]struct{}
 }
 
 func (mac *MultiAppPublisher) groupByApp(logs []common.MapStr) map[string][]string {
-	defaultApp := mac.appName
-
 	// the string representations of all logs are grouped by app names
-	// a default app name is used in case of problems
 	appLogs := make(map[string][]string)
-	for i := range logs {
-		logStr := fmt.Sprintf("%v", logs[i])
-		if element, err := logs[i].GetValue(mac.key); err != nil {
-			appLogs[defaultApp] = append(appLogs[defaultApp], logStr)
-		} else {
-			if app, ok := element.(string); ok {
-				appLogs[app] = append(appLogs[app], logStr)
-			} else {
-				appLogs[defaultApp] = append(appLogs[defaultApp], logStr)
-			}
-		}
+	for range appLogs {
+		logStr := fmt.Sprintf("%v", logs[1])
+		fmt.Sprintf("%v", logStr)
+		//if element, err := logs[i].GetValue(mac.key); err != nil {
+		//	appLogs["defaultApp"] = append(appLogs[defaultApp], logStr)
+		//} else {
+		//	if app, ok := element.(string); ok {
+		//		appLogs[app] = append(appLogs[app], logStr)
+		//	} else {
+		//		appLogs["defaultApp"] = append(appLogs[defaultApp], logStr)
+		//	}
+		//}
 	}
 
 	return appLogs

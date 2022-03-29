@@ -3,7 +3,6 @@ package logsight
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/elastic/beats/v7/libbeat/logp"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -13,7 +12,6 @@ import (
 type Request struct {
 	encoder    encoder
 	httpClient *http.Client
-	log        *logp.Logger
 }
 
 func (r *Request) request(
@@ -53,7 +51,6 @@ func (r *Request) execHTTPRequest(req *http.Request, headers map[string]string) 
 
 	respBody, err := NewResponseBody(resp.Body)
 	if err != nil {
-		r.log.Warnf("error while reading the response body: %v", err)
 		return resp.StatusCode, nil, nil
 	}
 
@@ -64,7 +61,7 @@ func (r *Request) closing(c io.Closer) {
 	if c != nil {
 		err := c.Close()
 		if err != nil {
-			r.log.Warnf("Closing of response body failed: %w", err)
+			//r.logger.Warnf("Closing of response body failed: %w", err)
 		}
 	}
 }
@@ -73,7 +70,7 @@ type ResponseBody struct {
 	respBody []byte
 }
 
-func NewResponseBody(respBody io.ReadCloser) (*ResponseBody, error){
+func NewResponseBody(respBody io.ReadCloser) (*ResponseBody, error) {
 	body, err := ioutil.ReadAll(respBody)
 	if err != nil {
 		return nil, fmt.Errorf("error while reading response body: %w", err)
@@ -86,7 +83,7 @@ func (resp *ResponseBody) AsJson() (map[string]interface{}, error) {
 		return nil, nil
 	}
 	var respMap map[string]interface{}
-	if err := json.Unmarshal(resp.respBody ,&respMap); err != nil {
+	if err := json.Unmarshal(resp.respBody, &respMap); err != nil {
 		return nil, fmt.Errorf("failed to decode response body to JSON %v: %w", resp.AsString(), err)
 	}
 	return respMap, nil
@@ -97,7 +94,7 @@ func (resp *ResponseBody) AsJsonArray() ([]map[string]interface{}, error) {
 		return nil, nil
 	}
 	var respJsonArray []map[string]interface{}
-	if err := json.Unmarshal(resp.respBody ,&respJsonArray); err != nil {
+	if err := json.Unmarshal(resp.respBody, &respJsonArray); err != nil {
 		return nil, err
 	}
 	return respJsonArray, nil

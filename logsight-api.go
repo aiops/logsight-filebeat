@@ -12,7 +12,7 @@ type Logsight struct {
 	email    string
 	password string
 	request  Request
-	log      *logp.Logger
+	logger   *logp.Logger
 
 	token   string
 	userId  int
@@ -192,7 +192,7 @@ func (l *Logsight) authRequest(
 ) (*ResponseBody, int, error) {
 	// auth requests require a bearer token which is acquired by calling Login()
 	if l.token == "" {
-		l.log.Warnf("%v requests to %v require authorization. trying to login...", method, url)
+		l.logger.Warnf("%v requests to %v require authorization. trying to login...", method, url)
 		if err := l.login(); err != nil {
 			return nil, -1, fmt.Errorf("authorization via login failed: %w", err)
 		}
@@ -213,11 +213,11 @@ func (l *Logsight) authRequest(
 		return nil, -1, err
 	}
 	if status == 401 || status == 403 {
-		l.log.Warnf("unauthorized / forbidden return code from logsight with current bearer token. re-trying login...", method, url)
+		l.logger.Warnf("unauthorized / forbidden return code from logsight with current bearer token. re-trying login...", method, url)
 		if err := l.login(); err != nil {
 			return nil, status, fmt.Errorf("authorization via login failed: %w", err)
 		}
-		l.log.Infof("login successful. re-trying authorized %v request to %v", method, url)
+		l.logger.Infof("login successful. re-trying authorized %v request to %v", method, url)
 		status, resp, err := l.request.request(method, url, body, headers)
 		if err != nil {
 			return nil, status, err

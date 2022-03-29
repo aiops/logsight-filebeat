@@ -31,9 +31,10 @@ type backoff struct {
 }
 
 type application struct {
-	Name       string
-	Key        string
-	AutoCreate bool
+	Name            string
+	Key             string
+	KeyRegexMatcher string
+	AutoCreate      bool
 }
 
 var (
@@ -42,9 +43,10 @@ var (
 		Email:    "",
 		Password: "",
 		App: application{
-			Name:       "",
-			Key:        "",
-			AutoCreate: true,
+			Name:            "",
+			Key:             "",
+			KeyRegexMatcher: "",
+			AutoCreate:      true,
 		},
 		BatchPublish: false,
 		BatchSize:    2,
@@ -87,7 +89,7 @@ func MakeLogsightAPI(
 		if host, err := os.Hostname(); err != nil {
 			config.App.Name = host
 		} else {
-			config.App.Name = "defaultAppName"
+			config.App.Name = "filebeat_source"
 		}
 	}
 
@@ -104,7 +106,7 @@ func MakeLogsightAPI(
 	}
 	clients := make([]outputs.NetworkClient, len(hosts))
 	for i, host := range hosts {
-		log.Infof("Making client for host: %v", host)
+		log.Infof("Creating client for host: %v", host)
 		hostURL, err := url.Parse(host)
 		if err != nil {
 			log.Errorf("invalid url format: %v, Error: %v", host, err)
