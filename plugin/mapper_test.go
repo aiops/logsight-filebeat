@@ -1,4 +1,4 @@
-package logsight
+package plugin
 
 import (
 	"fmt"
@@ -9,22 +9,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	testMap = common.MapStr{
-		"key": common.MapStr{
-			"key1": "value1",
-		},
-		"key3": "value2",
-		"key4": 4,
-	}
-)
-
 func TestConstantMapper_doMap(t *testing.T) {
 	type fields struct {
 		constantString string
 	}
 	type args struct {
 		ignored common.MapStr
+	}
+	testMap := common.MapStr{
+		"key": common.MapStr{
+			"key1": "value1",
+		},
+		"key3": "value2",
+		"key4": 4,
 	}
 	tests := []struct {
 		name    string
@@ -64,7 +61,13 @@ func TestKeyMapper_doMap(t *testing.T) {
 	type args struct {
 		mapSource common.MapStr
 	}
-
+	testMap := common.MapStr{
+		"key": common.MapStr{
+			"key1": "value1",
+		},
+		"key3": "value2",
+		"key4": 4,
+	}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -127,9 +130,15 @@ func TestKeyRegexMapper_doMap(t *testing.T) {
 			key: "key3",
 		},
 	}
-
 	type args struct {
 		mapSource common.MapStr
+	}
+	testMap := common.MapStr{
+		"key": common.MapStr{
+			"key1": "value1",
+		},
+		"key3": "value2",
+		"key4": 4,
 	}
 	tests := []struct {
 		name    string
@@ -232,6 +241,13 @@ func TestStringMapper_doStringMap(t *testing.T) {
 	type args struct {
 		mapSource common.MapStr
 	}
+	testMap := common.MapStr{
+		"key": common.MapStr{
+			"key1": "value1",
+		},
+		"key3": "value2",
+		"key4": 4,
+	}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -272,128 +288,6 @@ func TestStringMapper_doStringMap(t *testing.T) {
 				return
 			}
 			assert.Equalf(t, tt.want, got, "doStringMap(%v)", tt.args.mapSource)
-		})
-	}
-}
-
-func TestLogMapper_doMap(t *testing.T) {
-	type fields struct {
-		timestampMapper StringMapper
-		messageMapper   StringMapper
-		levelMapper     StringMapper
-		metadataMapper  StringMapper
-	}
-	logMapperFields := fields{
-		timestampMapper: StringMapper{mapper: &ConstantStringMapper{constantString: "test"}},
-		messageMapper:   StringMapper{mapper: &ConstantStringMapper{constantString: "test"}},
-		levelMapper:     StringMapper{mapper: &ConstantStringMapper{constantString: "test"}},
-		metadataMapper:  StringMapper{mapper: &ConstantStringMapper{constantString: "test"}},
-	}
-	type args struct {
-		mapSource common.MapStr
-	}
-	logExpected := &Log{
-		timestamp: "test",
-		message:   "test",
-		level:     "test",
-		metadata:  "test",
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *Log
-		wantErr bool
-	}{
-		{
-			name:    "pass",
-			fields:  logMapperFields,
-			args:    args{mapSource: testMap},
-			want:    logExpected,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lm := &LogMapper{
-				timestampMapper: tt.fields.timestampMapper,
-				messageMapper:   tt.fields.messageMapper,
-				levelMapper:     tt.fields.levelMapper,
-				metadataMapper:  tt.fields.metadataMapper,
-			}
-			got, err := lm.doMap(tt.args.mapSource)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("applyRegex() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			assert.Equalf(t, tt.want, got, "doMap(%v)", tt.args.mapSource)
-		})
-	}
-}
-
-func TestLogBatchMapper_doMap(t *testing.T) {
-	type fields struct {
-		applicationNameMapper StringMapper
-		tagMapper             StringMapper
-		logMapper             LogMapper
-	}
-	logBatchMapperFields := fields{
-		applicationNameMapper: StringMapper{mapper: &ConstantStringMapper{constantString: "test"}},
-		tagMapper:             StringMapper{mapper: &ConstantStringMapper{constantString: "test"}},
-		logMapper: LogMapper{
-			timestampMapper: StringMapper{mapper: &ConstantStringMapper{constantString: "test"}},
-			messageMapper:   StringMapper{mapper: &ConstantStringMapper{constantString: "test"}},
-			levelMapper:     StringMapper{mapper: &ConstantStringMapper{constantString: "test"}},
-			metadataMapper:  StringMapper{mapper: &ConstantStringMapper{constantString: "test"}},
-		},
-	}
-
-	type args struct {
-		mapSources []common.MapStr
-	}
-	mapSources := []common.MapStr{testMap, testMap, testMap}
-	logExpected := &Log{
-		timestamp: "test",
-		message:   "test",
-		level:     "test",
-		metadata:  "test",
-	}
-	logBatchExpected := []*LogBatch{
-		{
-			applicationName: "test",
-			tag:             "test",
-			logs:            []*Log{logExpected, logExpected, logExpected},
-		},
-	}
-
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []*LogBatch
-		wantErr bool
-	}{
-		{
-			name:    "pass",
-			fields:  logBatchMapperFields,
-			args:    args{mapSources: mapSources},
-			want:    logBatchExpected,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lbm := &LogBatchMapper{
-				applicationNameMapper: tt.fields.applicationNameMapper,
-				tagMapper:             tt.fields.tagMapper,
-				logMapper:             tt.fields.logMapper,
-			}
-			got, err := lbm.doMap(tt.args.mapSources)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("applyRegex() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			assert.Equalf(t, tt.want, got, "doMap(%v)", tt.args.mapSources)
 		})
 	}
 }
