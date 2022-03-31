@@ -1,7 +1,8 @@
-package plugin
+package logsight
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,10 +16,47 @@ type BaseApi struct {
 	url        *url.URL
 }
 
+func (ba *BaseApi) BuildRequest(method string, url string, req interface{}) (*http.Request, error) {
+	reqEncoded, err := ba.buildBody(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// reqEncoded can be nil for requests without a body
+	reqResult, err := http.NewRequest(method, url, reqEncoded)
+	if err != nil {
+		return nil, err
+	}
+
+	ba.addJsonContentTypeHeader(reqResult)
+
+	return reqResult, nil
+}
+
+func (ba *BaseApi) BuildRequestWithBasicAuth(method string, url string, req interface{}, username string, password string) (*http.Request, error) {
+	reqResult, err := ba.BuildRequest(method, url, req)
+	if err != nil {
+		return nil, err
+	}
+	ba.addBasicAuthHeader(reqResult, username, password)
+	return reqResult, nil
+}
+
 func (ba *BaseApi) addJsonContentTypeHeader(req *http.Request) {
 	key := "Content-Type"
 	value := "application/json; charset=UTF-8"
 	req.Header.Add(key, value)
+}
+
+func (ba *BaseApi) addBasicAuthHeader(req *http.Request, username string, password string) {
+	key := "Authorization"
+	value := fmt.Sprintf("Basic %v", ba.buildBasicAuth(username, password))
+	req.Header.Add(key, value)
+}
+
+func (ba *BaseApi) buildBasicAuth(username string, password string) string {
+	auth := fmt.Sprintf("%v:%v", username, password)
+	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
 func (ba *BaseApi) closing(c io.Closer) {
@@ -70,24 +108,7 @@ func (ba *BaseApi) buildBody(req interface{}) (io.Reader, error) {
 	return reqEncoded, nil
 }
 
-func (ba *BaseApi) BuildRequest(method string, url string, req interface{}) (*http.Request, error) {
-	reqEncoded, err := ba.buildBody(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// reqEncoded can be nil for requests without a body
-	reqResult, err := http.NewRequest(method, url, reqEncoded)
-	if err != nil {
-		return nil, err
-	}
-
-	ba.addJsonContentTypeHeader(reqResult)
-
-	return reqResult, nil
-}
-
-func (ba *BaseApi) checkStatusOrErr(resp *http.Response, expectedStatus int) error {
+func (ba *BaseApi) CheckStatusOrErr(resp *http.Response, expectedStatus int) error {
 	if resp.StatusCode != expectedStatus {
 		if respBytes, err := ba.toBytes(resp.Body); err != nil {
 			return fmt.Errorf("unexpected return code %v. %v was expected", resp.StatusCode, expectedStatus)

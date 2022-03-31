@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"github.com/aiops/logsight-filebeat/plugin/logsight"
 	"github.com/elastic/beats/v7/libbeat/common"
 )
 
@@ -13,7 +14,7 @@ type LogMapper struct {
 	metadataMapper  StringMapper
 }
 
-func (lm *LogMapper) toLog(mapSource common.MapStr) (*Log, error) {
+func (lm *LogMapper) toLog(mapSource common.MapStr) (*logsight.Log, error) {
 	timestamp, err := lm.timestampMapper.doStringMap(mapSource)
 	if err != nil {
 		return nil, err
@@ -30,7 +31,7 @@ func (lm *LogMapper) toLog(mapSource common.MapStr) (*Log, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Log{
+	return &logsight.Log{
 		Timestamp: timestamp,
 		Message:   message,
 		Level:     level,
@@ -45,8 +46,8 @@ type LogBatchMapper struct {
 	logMapper             LogMapper
 }
 
-func (lbm *LogBatchMapper) toLogBatch(mapSources []common.MapStr) ([]*LogBatch, error) {
-	logBatchMap := make(map[string]*LogBatch)
+func (lbm *LogBatchMapper) toLogBatch(mapSources []common.MapStr) ([]*logsight.LogBatch, error) {
+	logBatchMap := make(map[string]*logsight.LogBatch)
 	for _, mapSource := range mapSources {
 		applicationName, err := lbm.applicationNameMapper.doStringMap(mapSource)
 		if err != nil {
@@ -64,15 +65,15 @@ func (lbm *LogBatchMapper) toLogBatch(mapSources []common.MapStr) ([]*LogBatch, 
 		if val, ok := logBatchMap[key]; ok {
 			val.Logs = append(val.Logs, log)
 		} else {
-			logBatchMap[key] = &LogBatch{
+			logBatchMap[key] = &logsight.LogBatch{
 				ApplicationName: applicationName,
 				Tag:             tag,
-				Logs:            []*Log{log},
+				Logs:            []*logsight.Log{log},
 			}
 		}
 	}
 
-	logBatchList := make([]*LogBatch, 0, len(logBatchMap))
+	logBatchList := make([]*logsight.LogBatch, 0, len(logBatchMap))
 	for _, logBatch := range logBatchMap {
 		logBatchList = append(logBatchList, logBatch)
 	}

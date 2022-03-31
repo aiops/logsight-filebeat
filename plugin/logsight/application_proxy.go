@@ -1,4 +1,4 @@
-package plugin
+package logsight
 
 // ApplicationApiCacheProxy Proxy pattern to implement caching for ApplicationApi
 // See https://refactoring.guru/design-patterns/proxy
@@ -26,11 +26,29 @@ func (cap *ApplicationApiCacheProxy) GetApplications() ([]*Application, error) {
 	}
 }
 
-func (cap *ApplicationApiCacheProxy) CreateApplication(name string) (*Application, error) {
+func (cap *ApplicationApiCacheProxy) GetApplicationByName(name string) (*Application, error) {
 	if cap.applicationCache.contains(name) {
 		return cap.applicationCache.get(name), nil
 	} else {
-		application, err := cap.applicationAPI.CreateApplication(name)
+		cap.ClearCache()
+		if _, err := cap.GetApplications(); err != nil {
+			return nil, err
+		}
+		if cap.applicationCache.contains(name) {
+			return cap.applicationCache.get(name), nil
+		} else {
+			return nil, nil
+		}
+	}
+}
+
+func (cap *ApplicationApiCacheProxy) CreateApplication(name string) (*Application, error) {
+	if application, err := cap.GetApplicationByName(name); err != nil {
+		return nil, err
+	} else if application != nil {
+		return application, nil
+	} else {
+		application, err := cap.applicationAPI.CreateApplication(CreateApplicationRequest{Name: name})
 		if err != nil {
 			return nil, err
 		}

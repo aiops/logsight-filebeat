@@ -1,4 +1,4 @@
-package plugin
+package logsight
 
 import (
 	"encoding/json"
@@ -47,7 +47,7 @@ func (la *LoginApi) Login(loginReq LoginRequest) (*LoginResponse, error) {
 	}
 	defer la.closing(resp.Body)
 
-	if err := la.checkStatusOrErr(resp, 200); err != nil {
+	if err := la.CheckStatusOrErr(resp, 200); err != nil {
 		return nil, la.loginError(loginReq, err)
 	}
 

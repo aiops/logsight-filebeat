@@ -1,7 +1,6 @@
-package logsight
+package plugin
 
 import (
-	"fmt"
 	"github.com/elastic/beats/v7/libbeat/beat"
 	"github.com/elastic/beats/v7/libbeat/common"
 	"github.com/elastic/beats/v7/libbeat/logp"
@@ -9,87 +8,35 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"time"
-)
-
-type ClientConfig struct {
-	Proxy        string        `config:"proxy"`
-	TLS          string        `config:"tls"`
-	Email        string        `config:"email"`
-	Password     string        `config:"password"`
-	App          application   `config:"application"`
-	BatchPublish bool          `config:"batch_publish"`
-	BatchSize    int           `config:"batch_size"`
-	MaxRetries   int           `config:"max_retries"`
-	Timeout      time.Duration `config:"timeout"`
-	Backoff      backoff       `config:"backoff"`
-}
-
-type backoff struct {
-	Init time.Duration
-	Max  time.Duration
-}
-
-type application struct {
-	Name            string
-	Key             string
-	KeyRegexMatcher string
-	AutoCreate      bool
-}
-
-var (
-	defaultConfig = ClientConfig{
-		Proxy:    "",
-		Email:    "",
-		Password: "",
-		App: application{
-			Name:            "",
-			Key:             "",
-			KeyRegexMatcher: "",
-			AutoCreate:      true,
-		},
-		BatchPublish: false,
-		BatchSize:    2,
-		Timeout:      90 * time.Second,
-		MaxRetries:   3,
-		Backoff: backoff{
-			Init: 1 * time.Second,
-			Max:  60 * time.Second,
-		},
-	}
 )
 
 func init() {
-	outputs.RegisterType("logsight", MakeLogsightAPI)
+	outputs.RegisterType("logsight", makeLogsight)
 }
 
 const logSelector = "logsight"
 
-func MakeLogsightAPI(
-	_ outputs.IndexManager,
-	_ beat.Info,
+func makeLogsight(
+	im outputs.IndexManager,
+	beat beat.Info,
 	observer outputs.Observer,
 	cfg *common.Config,
 ) (outputs.Group, error) {
 	log := logp.NewLogger(logSelector)
 
-	config := defaultConfig
+	config := defaultLogsightConfig
 	if err := cfg.Unpack(&config); err != nil {
 		return outputs.Fail(err)
 	}
-
-	if config.Email == "" {
-		return outputs.Fail(fmt.Errorf("email parameter needs to be set for logsight output"))
-	}
-	if config.Password == "" {
-		return outputs.Fail(fmt.Errorf("password parameter needs to be set for logsight output"))
+	if err := config.Validate(); err != nil {
+		return outputs.Fail(err)
 	}
 
-	if config.App.Name == "" {
+	if config.Application.Name == "" {
 		if host, err := os.Hostname(); err != nil {
-			config.App.Name = host
+			config.Application.Name = host
 		} else {
-			config.App.Name = "filebeat_source"
+			config.Application.Name = "filebeat_source"
 		}
 	}
 
@@ -97,7 +44,7 @@ func MakeLogsightAPI(
 	if err != nil {
 		return outputs.Fail(err)
 	}
-	proxyURL, err := parseProxyURL("")
+	proxyURL, err := parseProxyURL(config.ProxyURL)
 	if err != nil {
 		return outputs.Fail(err)
 	}

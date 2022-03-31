@@ -1,4 +1,4 @@
-package plugin
+package logsight
 
 import (
 	"encoding/json"
@@ -13,8 +13,8 @@ var (
 )
 
 type Application struct {
-	Id   *uuid.UUID `json:"applicationId"`
-	Name string     `json:"name"`
+	Id   uuid.UUID `json:"applicationId"`
+	Name string    `json:"name"`
 }
 
 type CreateApplicationRequest struct {
@@ -22,14 +22,16 @@ type CreateApplicationRequest struct {
 }
 
 type ApplicationApiInterface interface {
-	GetApplications()
-	CreateApplication(string)
+	GetApplications() ([]*Application, error)
+	GetApplicationByName(string) (*Application, error)
+	CreateApplication(string) (*Application, error)
 }
 
 type ApplicationApi struct {
 	BaseApi
 	ApplicationApiInterface
-	user User
+
+	user *User
 }
 
 func (aa *ApplicationApi) GetApplications() ([]*Application, error) {
@@ -38,7 +40,7 @@ func (aa *ApplicationApi) GetApplications() ([]*Application, error) {
 	urlLogin := aa.url
 	urlLogin.Path = fmt.Sprintf(getApplicationConf["path"], aa.user.Id.String())
 
-	req, err := aa.BuildRequest(method, urlLogin.String(), nil)
+	req, err := aa.BuildRequestWithBasicAuth(method, urlLogin.String(), nil, aa.user.Email, aa.user.Password)
 	if err != nil {
 		return nil, aa.getApplicationsError(err)
 	}
@@ -49,7 +51,7 @@ func (aa *ApplicationApi) GetApplications() ([]*Application, error) {
 	}
 	defer aa.closing(resp.Body)
 
-	if err := aa.checkStatusOrErr(resp, 200); err != nil {
+	if err := aa.CheckStatusOrErr(resp, 200); err != nil {
 		return nil, aa.getApplicationsError(err)
 	}
 
@@ -83,14 +85,31 @@ func (aa *ApplicationApi) getApplicationsError(err error) error {
 	return fmt.Errorf("%w; get request to get all applications for user %v failed", err, aa.user)
 }
 
-func (aa *ApplicationApi) CreateApplication(name string) (*Application, error) {
+// GetApplicationByName retrieves all applications and searches for the given name. If not found, nil is returned.
+func (aa *ApplicationApi) GetApplicationByName(name string) (*Application, error) {
+	applications, err := aa.GetApplications()
+	if err != nil {
+		return nil, err
+	}
+
+	applicationMap := map[string]*Application{}
+	for _, app := range applications {
+		if app != nil {
+			applicationMap[app.Name] = app
+		}
+	}
+
+	application, _ := applicationMap[name]
+	return application, nil
+}
+
+func (aa *ApplicationApi) CreateApplication(createAppReq CreateApplicationRequest) (*Application, error) {
 	method := postApplicationConf["method"]
 	// Make a copy to prevent side effects
 	urlLogin := aa.url
 	urlLogin.Path = fmt.Sprintf(postApplicationConf["path"], aa.user.Id.String())
-	createAppReq := CreateApplicationRequest{Name: name}
 
-	req, err := aa.BuildRequest(method, urlLogin.String(), nil)
+	req, err := aa.BuildRequestWithBasicAuth(method, urlLogin.String(), nil, aa.user.Email, aa.user.Password)
 	if err != nil {
 		return nil, aa.createApplicationError(createAppReq, err)
 	}
@@ -101,7 +120,7 @@ func (aa *ApplicationApi) CreateApplication(name string) (*Application, error) {
 	}
 	defer aa.closing(resp.Body)
 
-	if err := aa.checkStatusOrErr(resp, 201); err != nil {
+	if err := aa.CheckStatusOrErr(resp, 201); err != nil {
 		return nil, aa.createApplicationError(createAppReq, err)
 	}
 

@@ -1,4 +1,4 @@
-package plugin
+package logsight
 
 type applicationCache struct {
 	cache map[string]*Application // cache maps application name to application object pointer

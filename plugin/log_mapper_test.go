@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"github.com/aiops/logsight-filebeat/plugin/logsight"
 	"github.com/elastic/beats/v7/libbeat/common"
 	"testing"
 
@@ -23,7 +24,7 @@ func TestLogMapper_doMap(t *testing.T) {
 	type args struct {
 		mapSource common.MapStr
 	}
-	logExpected := &Log{
+	logExpected := &logsight.Log{
 		Timestamp: "test",
 		Message:   "test",
 		Level:     "test",
@@ -34,7 +35,7 @@ func TestLogMapper_doMap(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *Log
+		want    *logsight.Log
 		wantErr bool
 	}{
 		{
@@ -84,24 +85,24 @@ func TestLogBatchMapper_doMap(t *testing.T) {
 	}
 	testMap := common.MapStr{"key1": "value1"}
 	mapSources := []common.MapStr{testMap, testMap, testMap}
-	logExpected := &Log{
+	logExpected := &logsight.Log{
 		Timestamp: "test",
 		Message:   "test",
 		Level:     "test",
 		Metadata:  "test",
 	}
-	logBatchExpected := []*LogBatch{
+	logBatchExpected := []*logsight.LogBatch{
 		{
 			ApplicationName: "test",
 			Tag:             "test",
-			Logs:            []*Log{logExpected, logExpected, logExpected},
+			Logs:            []*logsight.Log{logExpected, logExpected, logExpected},
 		},
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
-		want    []*LogBatch
+		want    []*logsight.LogBatch
 		wantErr bool
 	}{
 		{
