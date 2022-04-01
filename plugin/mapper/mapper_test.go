@@ -1,4 +1,4 @@
-package plugin
+package mapper
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ func TestConstantMapper_doMap(t *testing.T) {
 		ignored common.MapStr
 	}
 	testMap := common.MapStr{
-		"key": common.MapStr{
+		"Key": common.MapStr{
 			"key1": "value1",
 		},
 		"key3": "value2",
@@ -40,15 +40,15 @@ func TestConstantMapper_doMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cm := &ConstantStringMapper{
-				constantString: tt.fields.constantString,
+				ConstantString: tt.fields.constantString,
 			}
-			got, err := cm.doMap(tt.args.ignored)
+			got, err := cm.DoMap(tt.args.ignored)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("doMap() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("DoMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("doMap() got = %v, want %v", got, tt.want)
+				t.Errorf("DoMap() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -62,7 +62,7 @@ func TestKeyMapper_doMap(t *testing.T) {
 		mapSource common.MapStr
 	}
 	testMap := common.MapStr{
-		"key": common.MapStr{
+		"Key": common.MapStr{
 			"key1": "value1",
 		},
 		"key3": "value2",
@@ -76,28 +76,28 @@ func TestKeyMapper_doMap(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "pass simple key",
+			name:    "pass simple Key",
 			fields:  fields{"key3"},
 			args:    args{testMap},
 			want:    "value2",
 			wantErr: false,
 		},
 		{
-			name:    "pass nested key",
-			fields:  fields{"key.key1"},
+			name:    "pass nested Key",
+			fields:  fields{"Key.key1"},
 			args:    args{testMap},
 			want:    "value1",
 			wantErr: false,
 		},
 		{
 			name:    "pass value is not a string",
-			fields:  fields{"key"},
+			fields:  fields{"Key"},
 			args:    args{testMap},
 			want:    common.MapStr{"key1": "value1"},
 			wantErr: false,
 		},
 		{
-			name:    "fail key not found",
+			name:    "fail Key not found",
 			fields:  fields{"key5"},
 			args:    args{testMap},
 			want:    "",
@@ -107,15 +107,15 @@ func TestKeyMapper_doMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			km := &KeyMapper{
-				key: tt.fields.key,
+				Key: tt.fields.key,
 			}
-			got, err := km.doMap(tt.args.mapSource)
+			got, err := km.DoMap(tt.args.mapSource)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("doMap() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("DoMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			// common.MapStr are not comparable by default. This is why this assert library is used to check equality
-			assert.Equal(t, got, tt.want, fmt.Sprintf("doMap() got = %v, want %v", got, tt.want))
+			assert.Equal(t, got, tt.want, fmt.Sprintf("DoMap() got = %v, want %v", got, tt.want))
 		})
 	}
 }
@@ -126,15 +126,15 @@ func TestKeyRegexMapper_doMap(t *testing.T) {
 		expr   *regexp.Regexp
 	}
 	stringMapper := StringMapper{
-		mapper: &KeyMapper{
-			key: "key3",
+		Mapper: &KeyMapper{
+			Key: "key3",
 		},
 	}
 	type args struct {
 		mapSource common.MapStr
 	}
 	testMap := common.MapStr{
-		"key": common.MapStr{
+		"Key": common.MapStr{
 			"key1": "value1",
 		},
 		"key3": "value2",
@@ -158,16 +158,16 @@ func TestKeyRegexMapper_doMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			krm := &KeyRegexMapper{
-				mapper: tt.fields.mapper,
-				expr:   tt.fields.expr,
+				Mapper: tt.fields.mapper,
+				Expr:   tt.fields.expr,
 			}
-			got, err := krm.doMap(tt.args.mapSource)
+			got, err := krm.DoMap(tt.args.mapSource)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("doMap() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("DoMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("doMap() got = %v, want %v", got, tt.want)
+				t.Errorf("DoMap() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -179,8 +179,8 @@ func TestKeyRegexMapper_applyRegex(t *testing.T) {
 		expr   *regexp.Regexp
 	}
 	constMapper := StringMapper{
-		mapper: &ConstantStringMapper{
-			constantString: "key",
+		Mapper: &ConstantStringMapper{
+			ConstantString: "Key",
 		},
 	}
 
@@ -209,7 +209,7 @@ func TestKeyRegexMapper_applyRegex(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "fail empty string match",
+			name:    "fail Empty string match",
 			fields:  fields{constMapper, regexp.MustCompile(".*/(.*)/.*")},
 			args:    args{"/path//here"},
 			want:    "",
@@ -219,8 +219,8 @@ func TestKeyRegexMapper_applyRegex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			krm := &KeyRegexMapper{
-				mapper: tt.fields.mapper,
-				expr:   tt.fields.expr,
+				Mapper: tt.fields.mapper,
+				Expr:   tt.fields.expr,
 			}
 			got, err := krm.applyRegex(tt.args.value)
 			if (err != nil) != tt.wantErr {
@@ -242,7 +242,7 @@ func TestStringMapper_doStringMap(t *testing.T) {
 		mapSource common.MapStr
 	}
 	testMap := common.MapStr{
-		"key": common.MapStr{
+		"Key": common.MapStr{
 			"key1": "value1",
 		},
 		"key3": "value2",
@@ -257,14 +257,14 @@ func TestStringMapper_doStringMap(t *testing.T) {
 	}{
 		{
 			name:    "pass",
-			fields:  fields{mapper: &ConstantStringMapper{constantString: "test"}},
+			fields:  fields{mapper: &ConstantStringMapper{ConstantString: "test"}},
 			args:    args{mapSource: testMap},
 			want:    "test",
 			wantErr: false,
 		},
 		{
-			name:    "pass empty string",
-			fields:  fields{mapper: &ConstantStringMapper{constantString: ""}},
+			name:    "pass Empty string",
+			fields:  fields{mapper: &ConstantStringMapper{ConstantString: ""}},
 			args:    args{mapSource: testMap},
 			want:    "",
 			wantErr: false,
@@ -280,7 +280,7 @@ func TestStringMapper_doStringMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sm := &StringMapper{
-				mapper: tt.fields.mapper,
+				Mapper: tt.fields.mapper,
 			}
 			got, err := sm.doStringMap(tt.args.mapSource)
 			if (err != nil) != tt.wantErr {

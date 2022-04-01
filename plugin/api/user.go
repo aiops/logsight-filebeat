@@ -1,4 +1,4 @@
-package logsight
+package api
 
 import (
 	"fmt"
@@ -16,12 +16,12 @@ func (u User) String() string {
 }
 
 type UserApi struct {
-	loginApi *LoginApi
+	LoginApi *LoginApi
 }
 
-func (u *UserApi) login(email string, password string) (*User, error) {
+func (u *UserApi) Login(email string, password string) (*User, error) {
 	loginReq := LoginRequest{Email: email, Password: password}
-	if loginResp, err := u.loginApi.Login(loginReq); err != nil {
+	if loginResp, err := u.LoginApi.Login(loginReq); err != nil {
 		return nil, err
 	} else {
 		return &User{Id: &loginResp.User.Id, Email: email, Password: password}, nil

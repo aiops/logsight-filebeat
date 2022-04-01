@@ -1,11 +1,14 @@
-package logsight
+package api
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"io"
+	"regexp"
 )
+
+const DefaultApplicationName = "filebeat_source"
 
 var (
 	getApplicationConf  = map[string]string{"method": "GET", "path": "/api/v1/users/%v/applications"}
@@ -24,28 +27,28 @@ type CreateApplicationRequest struct {
 type ApplicationApiInterface interface {
 	GetApplications() ([]*Application, error)
 	GetApplicationByName(string) (*Application, error)
-	CreateApplication(string) (*Application, error)
+	CreateApplication(CreateApplicationRequest) (*Application, error)
 }
 
 type ApplicationApi struct {
-	BaseApi
+	*BaseApi
 	ApplicationApiInterface
 
-	user *User
+	User *User
 }
 
 func (aa *ApplicationApi) GetApplications() ([]*Application, error) {
 	method := getApplicationConf["method"]
 	// Make a copy to prevent side effects
-	urlLogin := aa.url
-	urlLogin.Path = fmt.Sprintf(getApplicationConf["path"], aa.user.Id.String())
+	urlLogin := aa.Url
+	urlLogin.Path = fmt.Sprintf(getApplicationConf["path"], aa.User.Id.String())
 
-	req, err := aa.BuildRequestWithBasicAuth(method, urlLogin.String(), nil, aa.user.Email, aa.user.Password)
+	req, err := aa.BuildRequestWithBasicAuth(method, urlLogin.String(), nil, aa.User.Email, aa.User.Password)
 	if err != nil {
 		return nil, aa.getApplicationsError(err)
 	}
 
-	resp, err := aa.httpClient.Do(req)
+	resp, err := aa.HttpClient.Do(req)
 	if err != nil {
 		return nil, aa.getApplicationsError(err)
 	}
@@ -82,7 +85,7 @@ func (aa *ApplicationApi) unmarshalApplications(body io.ReadCloser) ([]*Applicat
 }
 
 func (aa *ApplicationApi) getApplicationsError(err error) error {
-	return fmt.Errorf("%w; get request to get all applications for user %v failed", err, aa.user)
+	return fmt.Errorf("%w; get request to get all applications for User %v failed", err, aa.User)
 }
 
 // GetApplicationByName retrieves all applications and searches for the given name. If not found, nil is returned.
@@ -106,15 +109,15 @@ func (aa *ApplicationApi) GetApplicationByName(name string) (*Application, error
 func (aa *ApplicationApi) CreateApplication(createAppReq CreateApplicationRequest) (*Application, error) {
 	method := postApplicationConf["method"]
 	// Make a copy to prevent side effects
-	urlLogin := aa.url
-	urlLogin.Path = fmt.Sprintf(postApplicationConf["path"], aa.user.Id.String())
+	urlLogin := aa.Url
+	urlLogin.Path = fmt.Sprintf(postApplicationConf["path"], aa.User.Id.String())
 
-	req, err := aa.BuildRequestWithBasicAuth(method, urlLogin.String(), nil, aa.user.Email, aa.user.Password)
+	req, err := aa.BuildRequestWithBasicAuth(method, urlLogin.String(), nil, aa.User.Email, aa.User.Password)
 	if err != nil {
 		return nil, aa.createApplicationError(createAppReq, err)
 	}
 
-	resp, err := aa.httpClient.Do(req)
+	resp, err := aa.HttpClient.Do(req)
 	if err != nil {
 		return nil, aa.createApplicationError(createAppReq, err)
 	}
@@ -146,5 +149,15 @@ func (aa *ApplicationApi) unmarshalApplication(body io.ReadCloser) (*Application
 }
 
 func (aa *ApplicationApi) createApplicationError(createAppReq CreateApplicationRequest, err error) error {
-	return fmt.Errorf("%w; create application %v failed for user %v failed", err, createAppReq.Name, aa.user)
+	return fmt.Errorf("%w; create application %v failed for User %v failed", err, createAppReq.Name, aa.User)
+}
+
+func EscapeSpecialCharsForValidApplicationName(name string) string {
+	// Make a Regex to say we only want letters and numbers
+	reg := regexp.MustCompile("[^a-z0-9_]+")
+	result := reg.ReplaceAllString(name, "")
+	if result == "" {
+		return DefaultApplicationName
+	}
+	return result
 }

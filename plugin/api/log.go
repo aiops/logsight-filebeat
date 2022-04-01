@@ -1,10 +1,11 @@
-package logsight
+package api
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"io"
+	"regexp"
 )
 
 var (
@@ -20,7 +21,37 @@ type Log struct {
 	Metadata  string `json:"metadata"`
 }
 
-// LogBatchRequest data structure used for sending requests to logsight. It must comply with the
+func (l *Log) ValidateLog() error {
+	if err := l.validateLevel(); err != nil {
+		return err
+	}
+	if err := l.validateTimestamp(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (l *Log) validateLevel() error {
+	levelRegex := "^INFO$|^WARNING$|^WARN$|^FINER$|^FINE$|^DEBUG$|^ERROR$|^ERR$|^EXCEPTION$|^SEVERE$"
+	reg := regexp.MustCompile(levelRegex)
+	if match := reg.MatchString(l.Level); match {
+		return nil
+	} else {
+		return fmt.Errorf("level must match one of %v", levelRegex)
+	}
+}
+
+func (l *Log) validateTimestamp() error {
+	iso8601Regex := "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(([+-]\\d{2}:\\d{2})|Z)?$"
+	reg := regexp.MustCompile(iso8601Regex)
+	if match := reg.MatchString(l.Timestamp); match {
+		return nil
+	} else {
+		return fmt.Errorf("timestamp must be in ISO 8601 format (match %v)", iso8601Regex)
+	}
+}
+
+// LogBatchRequest data structure used for sending requests to api. It must comply with the
 // request body of the /api/v1/logs POST interface
 type LogBatchRequest struct {
 	ApplicationId uuid.UUID `json:"applicationId"`
@@ -28,7 +59,7 @@ type LogBatchRequest struct {
 	Logs          []*Log    `json:"logs"`
 }
 
-// LogReceipt is returned uppon sending a LogBatchRequest to the logsight API.
+// LogReceipt is returned uppon sending a LogBatchRequest to the api API.
 type LogReceipt struct {
 	ReceiptId     uuid.UUID `json:"receiptId"`
 	LogsCount     int       `json:"logsCount"`
@@ -37,23 +68,23 @@ type LogReceipt struct {
 }
 
 type LogApi struct {
-	BaseApi
+	*BaseApi
 
-	user User
+	User *User
 }
 
 func (la *LogApi) SendLogBatch(logBatchReq *LogBatchRequest) (*LogReceipt, error) {
 	method := postLogBatchConf["method"]
 	// Make a copy to prevent side effects
-	urlLogin := la.url
+	urlLogin := la.Url
 	urlLogin.Path = postLogBatchConf["path"]
 
-	req, err := la.BuildRequestWithBasicAuth(method, urlLogin.String(), nil, la.user.Email, la.user.Password)
+	req, err := la.BuildRequestWithBasicAuth(method, urlLogin.String(), nil, la.User.Email, la.User.Password)
 	if err != nil {
 		return nil, la.sendLogBatchError(logBatchReq, err)
 	}
 
-	resp, err := la.httpClient.Do(req)
+	resp, err := la.HttpClient.Do(req)
 	if err != nil {
 		return nil, la.sendLogBatchError(logBatchReq, err)
 	}

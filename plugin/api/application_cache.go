@@ -1,7 +1,11 @@
-package logsight
+package api
 
 type applicationCache struct {
 	cache map[string]*Application // cache maps application name to application object pointer
+}
+
+func NewApplicationCache() *applicationCache {
+	return &applicationCache{cache: make(map[string]*Application)}
 }
 
 func (ac *applicationCache) isEmpty() bool {

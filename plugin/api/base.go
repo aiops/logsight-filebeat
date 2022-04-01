@@ -1,4 +1,4 @@
-package logsight
+package api
 
 import (
 	"bytes"
@@ -12,8 +12,8 @@ import (
 )
 
 type BaseApi struct {
-	httpClient *http.Client
-	url        *url.URL
+	HttpClient *http.Client
+	Url        *url.URL
 }
 
 func (ba *BaseApi) BuildRequest(method string, url string, req interface{}) (*http.Request, error) {
@@ -33,24 +33,18 @@ func (ba *BaseApi) BuildRequest(method string, url string, req interface{}) (*ht
 	return reqResult, nil
 }
 
-func (ba *BaseApi) BuildRequestWithBasicAuth(method string, url string, req interface{}, username string, password string) (*http.Request, error) {
-	reqResult, err := ba.BuildRequest(method, url, req)
+func (ba *BaseApi) BuildRequestWithBasicAuth(method string, url string, body interface{}, username string, password string) (*http.Request, error) {
+	req, err := ba.BuildRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
-	ba.addBasicAuthHeader(reqResult, username, password)
-	return reqResult, nil
+	req.SetBasicAuth(username, password)
+	return req, nil
 }
 
 func (ba *BaseApi) addJsonContentTypeHeader(req *http.Request) {
 	key := "Content-Type"
 	value := "application/json; charset=UTF-8"
-	req.Header.Add(key, value)
-}
-
-func (ba *BaseApi) addBasicAuthHeader(req *http.Request, username string, password string) {
-	key := "Authorization"
-	value := fmt.Sprintf("Basic %v", ba.buildBasicAuth(username, password))
 	req.Header.Add(key, value)
 }
 

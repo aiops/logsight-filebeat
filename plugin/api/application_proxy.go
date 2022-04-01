@@ -1,19 +1,23 @@
-package logsight
+package api
 
-// ApplicationApiCacheProxy Proxy pattern to implement caching for ApplicationApi
+// applicationApiCacheProxy Proxy pattern to implement caching for ApplicationApi
 // See https://refactoring.guru/design-patterns/proxy
-type ApplicationApiCacheProxy struct {
+type applicationApiCacheProxy struct {
 	ApplicationApiInterface
 
 	applicationAPI   *ApplicationApi
-	applicationCache applicationCache
+	applicationCache *applicationCache
 }
 
-func (cap *ApplicationApiCacheProxy) ClearCache() {
+func NewApplicationApiCacheProxy(applicationAPI *ApplicationApi) *applicationApiCacheProxy {
+	return &applicationApiCacheProxy{applicationAPI: applicationAPI, applicationCache: NewApplicationCache()}
+}
+
+func (cap *applicationApiCacheProxy) ClearCache() {
 	cap.applicationCache.clear()
 }
 
-func (cap *ApplicationApiCacheProxy) GetApplications() ([]*Application, error) {
+func (cap *applicationApiCacheProxy) GetApplications() ([]*Application, error) {
 	if cap.applicationCache.isEmpty() {
 		applications, err := cap.applicationAPI.GetApplications()
 		if err != nil {
@@ -26,7 +30,7 @@ func (cap *ApplicationApiCacheProxy) GetApplications() ([]*Application, error) {
 	}
 }
 
-func (cap *ApplicationApiCacheProxy) GetApplicationByName(name string) (*Application, error) {
+func (cap *applicationApiCacheProxy) GetApplicationByName(name string) (*Application, error) {
 	if cap.applicationCache.contains(name) {
 		return cap.applicationCache.get(name), nil
 	} else {
@@ -42,13 +46,13 @@ func (cap *ApplicationApiCacheProxy) GetApplicationByName(name string) (*Applica
 	}
 }
 
-func (cap *ApplicationApiCacheProxy) CreateApplication(name string) (*Application, error) {
-	if application, err := cap.GetApplicationByName(name); err != nil {
+func (cap *applicationApiCacheProxy) CreateApplication(req CreateApplicationRequest) (*Application, error) {
+	if application, err := cap.GetApplicationByName(req.Name); err != nil {
 		return nil, err
 	} else if application != nil {
 		return application, nil
 	} else {
-		application, err := cap.applicationAPI.CreateApplication(CreateApplicationRequest{Name: name})
+		application, err := cap.applicationAPI.CreateApplication(req)
 		if err != nil {
 			return nil, err
 		}

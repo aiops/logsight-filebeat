@@ -1,4 +1,4 @@
-package logsight
+package api
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	loginConf = map[string]string{"method": "POST", "path": "/api/v1/auth/login"}
+	loginConf = map[string]string{"method": "POST", "path": "/api/v1/auth/Login"}
 )
 
 type UserDTO struct {
@@ -18,7 +18,7 @@ type UserDTO struct {
 
 type LoginResponse struct {
 	Token uuid.UUID `json:"token"`
-	User  UserDTO   `json:"user"`
+	User  UserDTO   `json:"User"`
 }
 
 type LoginRequest struct {
@@ -27,13 +27,13 @@ type LoginRequest struct {
 }
 
 type LoginApi struct {
-	BaseApi
+	*BaseApi
 }
 
 func (la *LoginApi) Login(loginReq LoginRequest) (*LoginResponse, error) {
 	method := loginConf["method"]
 	// Make a copy to prevent side effects
-	urlLogin := la.url
+	urlLogin := la.Url
 	urlLogin.Path = loginConf["path"]
 
 	req, err := la.BuildRequest(method, urlLogin.String(), loginReq)
@@ -41,7 +41,7 @@ func (la *LoginApi) Login(loginReq LoginRequest) (*LoginResponse, error) {
 		return nil, la.loginError(loginReq, err)
 	}
 
-	resp, err := la.httpClient.Do(req)
+	resp, err := la.HttpClient.Do(req)
 	if err != nil {
 		return nil, la.loginError(loginReq, err)
 	}
@@ -73,5 +73,5 @@ func (la *LoginApi) unmarshal(body io.ReadCloser) (*LoginResponse, error) {
 }
 
 func (la *LoginApi) loginError(reqBody LoginRequest, err error) error {
-	return fmt.Errorf("%w; login for email %v failed", err, reqBody.Email)
+	return fmt.Errorf("%w; Login for email %v failed", err, reqBody.Email)
 }
