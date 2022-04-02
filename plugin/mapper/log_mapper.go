@@ -31,10 +31,15 @@ func (lm *LogMapper) ToLog(mapSource common.MapStr) (*api.Log, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &api.Log{
+	log := &api.Log{
 		Timestamp: timestamp,
 		Message:   message,
 		Level:     strings.ToUpper(level),
 		Metadata:  metadata,
-	}, nil
+	}
+	err = log.ValidateLog()
+	if err != nil {
+		return nil, err
+	}
+	return log, nil
 }

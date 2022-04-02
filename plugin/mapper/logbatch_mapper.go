@@ -70,11 +70,6 @@ func (lbm *LogBatchMapper) ToLogBatch(events []publisher.Event) ([]*MappedLogBat
 			failedEvents.Append(&event, err)
 			continue
 		}
-		err = log.ValidateLog()
-		if err != nil {
-			failedEvents.Append(&event, err)
-			continue
-		}
 		key := fmt.Sprintf("%v%v", applicationName, tag)
 		if val, ok := mappedLogBatchMap[key]; ok {
 			val.LogBatch.Logs = append(val.LogBatch.Logs, log)

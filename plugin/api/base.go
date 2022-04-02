@@ -2,7 +2,6 @@ package api
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,8 +15,8 @@ type BaseApi struct {
 	Url        *url.URL
 }
 
-func (ba *BaseApi) BuildRequest(method string, url string, req interface{}) (*http.Request, error) {
-	reqEncoded, err := ba.buildBody(req)
+func (ba *BaseApi) BuildRequest(method string, url string, body interface{}) (*http.Request, error) {
+	reqEncoded, err := ba.buildBody(body)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +26,6 @@ func (ba *BaseApi) BuildRequest(method string, url string, req interface{}) (*ht
 	if err != nil {
 		return nil, err
 	}
-
 	ba.addJsonContentTypeHeader(reqResult)
 
 	return reqResult, nil
@@ -48,11 +46,6 @@ func (ba *BaseApi) addJsonContentTypeHeader(req *http.Request) {
 	req.Header.Add(key, value)
 }
 
-func (ba *BaseApi) buildBasicAuth(username string, password string) string {
-	auth := fmt.Sprintf("%v:%v", username, password)
-	return base64.StdEncoding.EncodeToString([]byte(auth))
-}
-
 func (ba *BaseApi) closing(c io.Closer) {
 	if c != nil {
 		_ = c.Close()
@@ -60,6 +53,9 @@ func (ba *BaseApi) closing(c io.Closer) {
 }
 
 func (ba *BaseApi) toBytes(respBody io.ReadCloser) ([]byte, error) {
+	if respBody == nil {
+		return nil, nil
+	}
 	bodyBytes, err := ioutil.ReadAll(respBody)
 	if err != nil {
 		return nil, fmt.Errorf("%w; error while reading response body", err)
@@ -67,39 +63,24 @@ func (ba *BaseApi) toBytes(respBody io.ReadCloser) ([]byte, error) {
 	return bodyBytes, nil
 }
 
-func (ba *BaseApi) marshal(obj interface{}) ([]byte, error) {
-	marshaledReqBody, err := json.Marshal(obj)
-	if err != nil {
+func (ba *BaseApi) encode(body interface{}) (io.Reader, error) {
+	bodyEnc := bytes.NewBuffer(nil)
+	enc := json.NewEncoder(bodyEnc)
+	if err := enc.Encode(body); err != nil {
 		return nil, err
 	}
-	return marshaledReqBody, nil
+	return bodyEnc, nil
 }
 
-func (ba *BaseApi) encode(marshalled []byte) (io.Reader, error) {
-	body := bytes.NewBuffer(nil)
-	enc := json.NewEncoder(body)
-	if err := enc.Encode(marshalled); err != nil {
-		return nil, err
-	}
-	return body, nil
-}
-
-func (ba *BaseApi) buildBody(req interface{}) (io.Reader, error) {
-	if req == nil {
+func (ba *BaseApi) buildBody(body interface{}) (io.Reader, error) {
+	if body == nil {
 		return nil, nil
 	}
-
-	reqBytes, err := ba.marshal(req)
+	bodyEnc, err := ba.encode(body)
 	if err != nil {
 		return nil, err
 	}
-
-	reqEncoded, err := ba.encode(reqBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return reqEncoded, nil
+	return bodyEnc, nil
 }
 
 func (ba *BaseApi) CheckStatusOrErr(resp *http.Response, expectedStatus int) error {

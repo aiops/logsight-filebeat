@@ -8,7 +8,11 @@ import (
 	"regexp"
 )
 
+const levelRegex = "^INFO$|^WARNING$|^WARN$|^FINER$|^FINE$|^DEBUG$|^ERROR$|^ERR$|^EXCEPTION$|^SEVERE$"
+
 var (
+	InvalidLevelError = fmt.Errorf("level must match one of %v", levelRegex)
+
 	postLogBatchConf = map[string]string{"method": "POST", "path": "/api/v1/logs"}
 )
 
@@ -32,12 +36,11 @@ func (l *Log) ValidateLog() error {
 }
 
 func (l *Log) validateLevel() error {
-	levelRegex := "^INFO$|^WARNING$|^WARN$|^FINER$|^FINE$|^DEBUG$|^ERROR$|^ERR$|^EXCEPTION$|^SEVERE$"
 	reg := regexp.MustCompile(levelRegex)
 	if match := reg.MatchString(l.Level); match {
 		return nil
 	} else {
-		return fmt.Errorf("level must match one of %v", levelRegex)
+		return InvalidLevelError
 	}
 }
 

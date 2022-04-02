@@ -35,7 +35,8 @@ func TestConstantMapper_doMap(t *testing.T) {
 			fields:  fields{constantString: "app_name"},
 			args:    args{ignored: testMap},
 			want:    "app_name",
-			wantErr: false},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

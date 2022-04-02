@@ -11,6 +11,23 @@ var (
 	loginConf = map[string]string{"method": "POST", "path": "/api/v1/auth/Login"}
 )
 
+type LoginError struct {
+	err   error
+	email string
+}
+
+func (le LoginError) Error() string {
+	msg := fmt.Sprintf("login failed for email %v", le.email)
+	if le.err != nil {
+		return fmt.Sprintf("%v; %v", le.err, msg)
+	}
+	return msg
+}
+
+func (le LoginError) Unwrap() error {
+	return le.err
+}
+
 type UserDTO struct {
 	Id    uuid.UUID `json:"userId"`
 	Email uuid.UUID `json:"email"`
@@ -38,21 +55,21 @@ func (la *LoginApi) Login(loginReq LoginRequest) (*LoginResponse, error) {
 
 	req, err := la.BuildRequest(method, urlLogin.String(), loginReq)
 	if err != nil {
-		return nil, la.loginError(loginReq, err)
+		return nil, LoginError{err: err, email: loginReq.Email}
 	}
 
 	resp, err := la.HttpClient.Do(req)
 	if err != nil {
-		return nil, la.loginError(loginReq, err)
+		return nil, LoginError{err: err, email: loginReq.Email}
 	}
 	defer la.closing(resp.Body)
 
 	if err := la.CheckStatusOrErr(resp, 200); err != nil {
-		return nil, la.loginError(loginReq, err)
+		return nil, LoginError{err: err, email: loginReq.Email}
 	}
 
 	if loginResp, err := la.unmarshal(resp.Body); err != nil {
-		return nil, la.loginError(loginReq, err)
+		return nil, LoginError{err: err, email: loginReq.Email}
 	} else {
 		return loginResp, nil
 	}
@@ -70,8 +87,4 @@ func (la *LoginApi) unmarshal(body io.ReadCloser) (*LoginResponse, error) {
 	}
 
 	return &loginResp, nil
-}
-
-func (la *LoginApi) loginError(reqBody LoginRequest, err error) error {
-	return fmt.Errorf("%w; Login for email %v failed", err, reqBody.Email)
 }

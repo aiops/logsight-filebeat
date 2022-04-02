@@ -16,7 +16,7 @@ func TestLogBatchMapper_ToLogBatch(t *testing.T) {
 		TagMapper             *StringMapper
 		LogMapper             *LogMapper
 	}
-	logBatchMapperFields := fields{
+	logBatchMapperFieldsGood := fields{
 		ApplicationNameMapper: &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
 		TagMapper:             &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
 		LogMapper: &LogMapper{
@@ -26,6 +26,17 @@ func TestLogBatchMapper_ToLogBatch(t *testing.T) {
 			MetadataMapper:  &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
 		},
 	}
+	logBatchMapperFieldsBadLevel := fields{
+		ApplicationNameMapper: &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
+		TagMapper:             &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
+		LogMapper: &LogMapper{
+			TimestampMapper: &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "2022-04-01T20:10:57+02:00"}},
+			MessageMapper:   &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
+			LevelMapper:     &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "BOGUS"}},
+			MetadataMapper:  &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
+		},
+	}
+
 	type args struct {
 		events []publisher.Event
 	}
@@ -36,16 +47,18 @@ func TestLogBatchMapper_ToLogBatch(t *testing.T) {
 		Cache:   publisher.EventCache{},
 	}
 	events := []publisher.Event{testEvent, testEvent, testEvent}
-	logExpected := &api.Log{
+
+	log := &api.Log{
 		Timestamp: "2022-04-01T20:10:57+02:00",
 		Message:   "test",
 		Level:     "INFO",
 		Metadata:  "test",
 	}
+
 	logBatchExpected := &api.LogBatch{
 		ApplicationName: "test",
 		Tag:             "test",
-		Logs:            []*api.Log{logExpected, logExpected, logExpected},
+		Logs:            []*api.Log{log, log, log},
 	}
 	mappedLogBatchExpected := []*MappedLogBatch{
 		{
@@ -53,6 +66,11 @@ func TestLogBatchMapper_ToLogBatch(t *testing.T) {
 			Events:   []publisher.Event{testEvent, testEvent, testEvent},
 		},
 	}
+	failedEventsExpected := &FailedEvents{
+		Events: []*publisher.Event{&testEvent, &testEvent, &testEvent},
+		Errs:   []error{api.InvalidLevelError, api.InvalidLevelError, api.InvalidLevelError},
+	}
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -62,10 +80,17 @@ func TestLogBatchMapper_ToLogBatch(t *testing.T) {
 	}{
 		{
 			name:   "pass",
-			fields: logBatchMapperFields,
+			fields: logBatchMapperFieldsGood,
 			args:   args{events: events},
 			want:   mappedLogBatchExpected,
 			want1:  nil,
+		},
+		{
+			name:   "fail bad level",
+			fields: logBatchMapperFieldsBadLevel,
+			args:   args{events: events},
+			want:   []*MappedLogBatch{},
+			want1:  failedEventsExpected,
 		},
 	}
 	for _, tt := range tests {
