@@ -6,7 +6,7 @@ import (
 )
 
 type User struct {
-	Id       *uuid.UUID
+	Id       uuid.UUID
 	Email    string
 	Password string
 }
@@ -24,6 +24,6 @@ func (u *UserApi) Login(email string, password string) (*User, error) {
 	if loginResp, err := u.LoginApi.Login(loginReq); err != nil {
 		return nil, err
 	} else {
-		return &User{Id: &loginResp.User.Id, Email: email, Password: password}, nil
+		return &User{Id: *loginResp.User.Id, Email: email, Password: password}, nil
 	}
 }

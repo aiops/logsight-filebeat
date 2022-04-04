@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"io"
+	"net/http"
 )
 
 var (
@@ -29,18 +30,18 @@ func (le LoginError) Unwrap() error {
 }
 
 type UserDTO struct {
-	Id    uuid.UUID `json:"userId"`
-	Email uuid.UUID `json:"email"`
+	Id    *uuid.UUID `json:"userId" validate:"required"`
+	Email *string    `json:"email" validate:"required"`
 }
 
 type LoginResponse struct {
-	Token uuid.UUID `json:"token"`
-	User  UserDTO   `json:"User"`
+	Token *string  `json:"token" validate:"required"`
+	User  *UserDTO `json:"user" validate:"required"`
 }
 
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 type LoginApi struct {
@@ -64,8 +65,8 @@ func (la *LoginApi) Login(loginReq LoginRequest) (*LoginResponse, error) {
 	}
 	defer la.closing(resp.Body)
 
-	if err := la.CheckStatusOrErr(resp, 200); err != nil {
-		return nil, LoginError{err: err, email: loginReq.Email}
+	if resp.StatusCode != http.StatusOK {
+		return nil, LoginError{err: la.GetUnexpectedStatusError(resp, http.StatusOK), email: loginReq.Email}
 	}
 
 	if loginResp, err := la.unmarshal(resp.Body); err != nil {
@@ -83,7 +84,21 @@ func (la *LoginApi) unmarshal(body io.ReadCloser) (*LoginResponse, error) {
 
 	var loginResp LoginResponse
 	if err := json.Unmarshal(bodyBytes, &loginResp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w; error while unmarshalling the Login object %v", err, string(bodyBytes))
+	}
+
+	errMsg := fmt.Sprintf("unmarshalling login response from %v failed", bodyBytes)
+	if loginResp.Token == nil {
+		return nil, fmt.Errorf("%v; token is nil", errMsg)
+	}
+	if loginResp.User == nil {
+		return nil, fmt.Errorf("%v; user is nil", errMsg)
+	}
+	if loginResp.User.Id == nil {
+		return nil, fmt.Errorf("%v; user id is nil", errMsg)
+	}
+	if loginResp.User.Email == nil {
+		return nil, fmt.Errorf("%v; user email is nil", errMsg)
 	}
 
 	return &loginResp, nil

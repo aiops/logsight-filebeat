@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"io"
+	"net/http"
 	"regexp"
 )
 
@@ -16,8 +17,8 @@ var (
 )
 
 type Application struct {
-	Id   uuid.UUID `json:"applicationId"`
-	Name string    `json:"name"`
+	Id   *uuid.UUID `json:"applicationId"`
+	Name *string    `json:"applicationName"`
 }
 
 type CreateApplicationRequest struct {
@@ -31,8 +32,8 @@ type ApplicationApiInterface interface {
 }
 
 type ApplicationApi struct {
-	*BaseApi
 	ApplicationApiInterface
+	*BaseApi
 
 	User *User
 }
@@ -54,8 +55,8 @@ func (aa *ApplicationApi) GetApplications() ([]*Application, error) {
 	}
 	defer aa.closing(resp.Body)
 
-	if err := aa.CheckStatusOrErr(resp, 200); err != nil {
-		return nil, aa.getApplicationsError(err)
+	if resp.StatusCode != http.StatusOK {
+		return nil, aa.getApplicationsError(aa.GetUnexpectedStatusError(resp, http.StatusOK))
 	}
 
 	if applications, err := aa.unmarshalApplications(resp.Body); err != nil {
@@ -71,14 +72,14 @@ func (aa *ApplicationApi) unmarshalApplications(body io.ReadCloser) ([]*Applicat
 		return nil, err
 	}
 
-	var applications []Application
+	var applications []*Application
 	if err := json.Unmarshal(bodyBytes, &applications); err != nil {
 		return nil, err
 	}
 
 	applicationsResult := make([]*Application, len(applications))
 	for i, application := range applications {
-		applicationsResult[i] = &application
+		applicationsResult[i] = application
 	}
 
 	return applicationsResult, nil
@@ -98,7 +99,7 @@ func (aa *ApplicationApi) GetApplicationByName(name string) (*Application, error
 	applicationMap := map[string]*Application{}
 	for _, app := range applications {
 		if app != nil {
-			applicationMap[app.Name] = app
+			applicationMap[*app.Name] = app
 		}
 	}
 
@@ -123,7 +124,14 @@ func (aa *ApplicationApi) CreateApplication(createAppReq CreateApplicationReques
 	}
 	defer aa.closing(resp.Body)
 
-	if err := aa.CheckStatusOrErr(resp, 201); err != nil {
+	if resp.StatusCode == http.StatusConflict {
+		application, err := aa.GetApplicationByName(createAppReq.Name)
+		if err != nil {
+			return nil, fmt.Errorf("%w; logsight reports that application %v already exists but failed to load it",
+				aa.createApplicationError(createAppReq, err), createAppReq.Name)
+		}
+		return application, nil
+	} else if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		return nil, aa.createApplicationError(createAppReq, err)
 	}
 
@@ -143,6 +151,14 @@ func (aa *ApplicationApi) unmarshalApplication(body io.ReadCloser) (*Application
 	var application Application
 	if err := json.Unmarshal(bodyBytes, &application); err != nil {
 		return nil, err
+	}
+
+	errMsg := fmt.Sprintf("unmarshalling application from %v failed", bodyBytes)
+	if application.Name == nil {
+		return nil, fmt.Errorf("%v; application name is nil", errMsg)
+	}
+	if application.Id == nil {
+		return nil, fmt.Errorf("%v; application id is nil", errMsg)
 	}
 
 	return &application, nil

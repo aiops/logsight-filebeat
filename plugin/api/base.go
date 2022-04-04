@@ -83,14 +83,11 @@ func (ba *BaseApi) buildBody(body interface{}) (io.Reader, error) {
 	return bodyEnc, nil
 }
 
-func (ba *BaseApi) CheckStatusOrErr(resp *http.Response, expectedStatus int) error {
-	if resp.StatusCode != expectedStatus {
-		if respBytes, err := ba.toBytes(resp.Body); err != nil {
-			return fmt.Errorf("unexpected return code %v. %v was expected", resp.StatusCode, expectedStatus)
-		} else {
-			return fmt.Errorf("unexpected return code %v. %v was expected. error body: %v",
-				resp.StatusCode, expectedStatus, string(respBytes))
-		}
+func (ba *BaseApi) GetUnexpectedStatusError(resp *http.Response, expectedStatus int) error {
+	if respBytes, err := ba.toBytes(resp.Body); err != nil {
+		return fmt.Errorf("unexpected return code %v. %v was expected", resp.StatusCode, expectedStatus)
+	} else {
+		return fmt.Errorf("unexpected return code %v. %v was expected. error body: %v",
+			resp.StatusCode, expectedStatus, string(respBytes))
 	}
-	return nil
 }

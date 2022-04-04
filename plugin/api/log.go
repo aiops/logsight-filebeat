@@ -5,24 +5,24 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"io"
+	"net/http"
 	"regexp"
 )
 
 const levelRegex = "^INFO$|^WARNING$|^WARN$|^FINER$|^FINE$|^DEBUG$|^ERROR$|^ERR$|^EXCEPTION$|^SEVERE$"
+const iso8601Regex = "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(([+-]\\d{2}:\\d{2})|Z)?$"
 
 var (
-	InvalidLevelError = fmt.Errorf("level must match one of %v", levelRegex)
-
 	postLogBatchConf = map[string]string{"method": "POST", "path": "/api/v1/logs"}
 )
 
 // Log data structure used in LogBatch. It must comply with the
 // request body of the /api/v1/logs POST interface
 type Log struct {
-	Timestamp string `json:"timestamp"`
-	Message   string `json:"message"`
-	Level     string `json:"level"`
-	Metadata  string `json:"metadata"`
+	Timestamp string `json:"timestamp" validate:"required"`
+	Message   string `json:"message" validate:"required"`
+	Level     string `json:"level" validate:"required"`
+	Metadata  string `json:"metadata" `
 }
 
 func (l *Log) ValidateLog() error {
@@ -40,29 +40,28 @@ func (l *Log) validateLevel() error {
 	if match := reg.MatchString(l.Level); match {
 		return nil
 	} else {
-		return InvalidLevelError
+		return fmt.Errorf("invalid log level. must be one of %v", levelRegex)
 	}
 }
 
 func (l *Log) validateTimestamp() error {
-	iso8601Regex := "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(([+-]\\d{2}:\\d{2})|Z)?$"
 	reg := regexp.MustCompile(iso8601Regex)
 	if match := reg.MatchString(l.Timestamp); match {
 		return nil
 	} else {
-		return fmt.Errorf("timestamp must be in ISO 8601 format (match %v)", iso8601Regex)
+		return fmt.Errorf("timestamp must be in ISO 8601 format (must match %v)", iso8601Regex)
 	}
 }
 
 // LogBatchRequest data structure used for sending requests to api. It must comply with the
 // request body of the /api/v1/logs POST interface
 type LogBatchRequest struct {
-	ApplicationId uuid.UUID `json:"applicationId"`
-	Tag           string    `json:"tag"`
-	Logs          []*Log    `json:"logs"`
+	ApplicationId uuid.UUID `json:"applicationId" validate:"required"`
+	Tag           string    `json:"tag" validate:"required"`
+	Logs          []*Log    `json:"logs" validate:"required"`
 }
 
-// LogReceipt is returned uppon sending a LogBatchRequest to the api API.
+// LogReceipt is returned upon sending a LogBatchRequest to the API.
 type LogReceipt struct {
 	ReceiptId     uuid.UUID `json:"receiptId"`
 	LogsCount     int       `json:"logsCount"`
@@ -93,29 +92,22 @@ func (la *LogApi) SendLogBatch(logBatchReq *LogBatchRequest) (*LogReceipt, error
 	}
 	defer la.closing(resp.Body)
 
-	if err := la.CheckStatusOrErr(resp, 200); err != nil {
-		return nil, la.sendLogBatchError(logBatchReq, err)
+	if resp.StatusCode != http.StatusOK {
+		return nil, la.GetUnexpectedStatusError(resp, http.StatusOK)
 	}
-
-	if applications, err := la.unmarshalLogReceipt(resp.Body); err != nil {
-		return nil, la.sendLogBatchError(logBatchReq, err)
-	} else {
-		return applications, nil
-	}
+	return la.unmarshalLogReceipt(resp.Body), nil
 }
 
-func (la *LogApi) unmarshalLogReceipt(body io.ReadCloser) (*LogReceipt, error) {
+func (la *LogApi) unmarshalLogReceipt(body io.ReadCloser) *LogReceipt {
 	bodyBytes, err := la.toBytes(body)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-
 	var logReceipt LogReceipt
 	if err := json.Unmarshal(bodyBytes, &logReceipt); err != nil {
-		return nil, err
+		return nil
 	}
-
-	return &logReceipt, nil
+	return &logReceipt
 }
 
 func (la *LogApi) sendLogBatchError(logBatchReq *LogBatchRequest, err error) error {

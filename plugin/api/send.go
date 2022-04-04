@@ -50,7 +50,7 @@ func (as Sender) Send(logBatch *LogBatch) error {
 		}
 	}
 
-	logBatchReq := logBatch.ToLogBatchRequest(application.Id)
+	logBatchReq := logBatch.ToLogBatchRequest(*application.Id)
 	if _, err := as.LogApi.SendLogBatch(logBatchReq); err != nil {
 		return err
 	}

@@ -9,7 +9,7 @@ import (
 const DefaultLevel = "INFO"
 
 type logsightConfig struct {
-	Host        string            `config:"host" validate:"required"`
+	Url         string            `config:"url" validate:"required"`
 	Email       string            `config:"email" validate:"required"`
 	Password    string            `config:"password" validate:"required"`
 	Application application       `config:"application"`

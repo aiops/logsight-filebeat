@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/aiops/logsight-filebeat/plugin/api"
 	"github.com/aiops/logsight-filebeat/plugin/mapper"
@@ -167,10 +166,7 @@ func (c Client) publish(logBatches []*mapper.MappedLogBatch) ([]publisher.Event,
 	var allErr error
 	for _, mappedLogBatch := range logBatches {
 		if err := c.logSender.Send(mappedLogBatch.LogBatch); err != nil {
-
-			//TODO error handling
-			var appNotFoundError *api.ApplicationNotFoundError
-			if !errors.As(err, appNotFoundError) {
+			if c.isRetryError(err) {
 				resend = append(resend, mappedLogBatch.Events...)
 				allErr = fmt.Errorf("%w; %v", allErr, err)
 			}
@@ -181,4 +177,9 @@ func (c Client) publish(logBatches []*mapper.MappedLogBatch) ([]publisher.Event,
 	} else {
 		return nil, nil
 	}
+}
+
+//TODO error handling
+func (c Client) isRetryError(err error) bool {
+	return false
 }

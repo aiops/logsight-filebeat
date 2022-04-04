@@ -44,7 +44,7 @@ func makeLogsight(
 		return outputs.Fail(err)
 	}
 
-	host := config.Host
+	host := config.Url
 	log.Infof("Creating client for host: %v", host)
 	hostURL, err := url.Parse(host)
 	if err != nil {

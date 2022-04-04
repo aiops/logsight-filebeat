@@ -40,14 +40,14 @@ func (ac *applicationCache) getAll() []*Application {
 
 func (ac *applicationCache) add(application *Application) {
 	if application != nil {
-		ac.cache[application.Name] = application
+		ac.cache[*application.Name] = application
 	}
 }
 
 func (ac *applicationCache) addAll(applications []*Application) {
 	for _, app := range applications {
 		if app != nil {
-			ac.cache[app.Name] = app
+			ac.cache[*app.Name] = app
 		}
 	}
 }

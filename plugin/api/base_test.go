@@ -135,8 +135,8 @@ func TestBaseApi_CheckStatusOrErr(t *testing.T) {
 				HttpClient: tt.fields.HttpClient,
 				Url:        tt.fields.Url,
 			}
-			if err := ba.CheckStatusOrErr(tt.args.resp, tt.args.expectedStatus); (err != nil) != tt.wantErr {
-				t.Errorf("CheckStatusOrErr() error = %v, wantErr %v", err, tt.wantErr)
+			if err := ba.GetUnexpectedStatusError(tt.args.resp, tt.args.expectedStatus); (err != nil) != tt.wantErr {
+				t.Errorf("GetUnexpectedStatusError() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
