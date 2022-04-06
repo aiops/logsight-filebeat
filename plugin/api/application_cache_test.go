@@ -292,16 +292,27 @@ func Test_applicationCache_getAll(t *testing.T) {
 	type fields struct {
 		cache map[string]*Application
 	}
+	idUUID, _ := uuid.NewRandom()
 	appName1 := "Test1"
 	testApp1 := &Application{
-		Id:   &uuid.UUID{},
+		Id:   &idUUID,
 		Name: &appName1,
 	}
 	appName2 := "Test2"
 	testApp2 := &Application{
-		Id:   &uuid.UUID{},
+		Id:   &idUUID,
 		Name: &appName2,
 	}
+	appName3 := "Test3"
+	testApp3 := &Application{
+		Id:   &idUUID,
+		Name: &appName3,
+	}
+	cacheOne := map[string]*Application{appName1: testApp1}
+	cacheTwo := map[string]*Application{appName2: testApp2, appName3: testApp3}
+	appsOne := []*Application{testApp1}
+	appsTwo := []*Application{testApp2, testApp3}
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -309,13 +320,13 @@ func Test_applicationCache_getAll(t *testing.T) {
 	}{
 		{
 			name:   "pass one",
-			fields: fields{cache: map[string]*Application{appName1: testApp1}},
-			want:   []*Application{testApp1},
+			fields: fields{cache: cacheOne},
+			want:   appsOne,
 		},
 		{
 			name:   "pass two",
-			fields: fields{cache: map[string]*Application{appName1: testApp1, appName2: testApp2}},
-			want:   []*Application{testApp1, testApp2},
+			fields: fields{cache: cacheTwo},
+			want:   appsTwo,
 		},
 		{
 			name:   "pass empty",

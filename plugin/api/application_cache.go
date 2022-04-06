@@ -1,5 +1,7 @@
 package api
 
+import "sort"
+
 type applicationCache struct {
 	cache map[string]*Application // cache maps application name to application object pointer
 }
@@ -30,10 +32,15 @@ func (ac *applicationCache) getAll() []*Application {
 	if ac.isEmpty() {
 		return nil
 	} else {
-		var applications []*Application
+		applications := make([]*Application, len(ac.cache))
+		i := 0
 		for _, app := range ac.cache {
-			applications = append(applications, app)
+			applications[i] = app
+			i++
 		}
+		sort.Slice(applications, func(i, j int) bool {
+			return *applications[i].Name < *applications[j].Name
+		})
 		return applications
 	}
 }

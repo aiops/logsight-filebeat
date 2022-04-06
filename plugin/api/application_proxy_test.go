@@ -256,9 +256,8 @@ func Test_applicationApiCacheProxy_GetApplicationByName(t *testing.T) {
 
 func Test_applicationApiCacheProxy_GetApplications(t *testing.T) {
 	type fields struct {
-		ApplicationApiInterface ApplicationApiInterface
-		applicationAPI          *ApplicationApi
-		applicationCache        *applicationCache
+		applicationAPI   *ApplicationApi
+		applicationCache *applicationCache
 	}
 
 	idUUID1, _ := uuid.NewRandom()
@@ -266,7 +265,7 @@ func Test_applicationApiCacheProxy_GetApplications(t *testing.T) {
 	appName1 := "heighliner1"
 	jsonApp := []byte(fmt.Sprintf(
 		`[{"applicationId":"%v","applicationName":"%v"}]`, idStr1, appName1))
-	idUUID2, _ := uuid.NewRandom()
+	idUUID2 := idUUID1
 	appName2 := "heighliner2"
 
 	testServerValid := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -332,9 +331,8 @@ func Test_applicationApiCacheProxy_GetApplications(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			capt := &applicationApiCacheProxy{
-				ApplicationApiInterface: tt.fields.ApplicationApiInterface,
-				applicationAPI:          tt.fields.applicationAPI,
-				applicationCache:        tt.fields.applicationCache,
+				applicationAPI:   tt.fields.applicationAPI,
+				applicationCache: tt.fields.applicationCache,
 			}
 			got, err := capt.GetApplications()
 			if (err != nil) != tt.wantErr {

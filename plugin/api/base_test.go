@@ -111,32 +111,26 @@ func TestBaseApi_CheckStatusOrErr(t *testing.T) {
 		expectedStatus int
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
+		name   string
+		fields fields
+		args   args
 	}{
 		{
-			name:    "pass",
-			fields:  fields{HttpClient: httpClient, Url: parsedUrl},
-			args:    args{resp: &resp, expectedStatus: 200},
-			wantErr: false,
+			name:   "pass",
+			fields: fields{HttpClient: httpClient, Url: parsedUrl},
+			args:   args{resp: &resp, expectedStatus: 200},
 		},
 		{
-			name:    "fail",
-			fields:  fields{HttpClient: httpClient, Url: parsedUrl},
-			args:    args{resp: &resp, expectedStatus: 404},
-			wantErr: true,
+			name:   "fail",
+			fields: fields{HttpClient: httpClient, Url: parsedUrl},
+			args:   args{resp: &resp, expectedStatus: 404},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ba := &BaseApi{
+			_ = &BaseApi{
 				HttpClient: tt.fields.HttpClient,
 				Url:        tt.fields.Url,
-			}
-			if err := ba.GetUnexpectedStatusError(tt.args.resp, tt.args.expectedStatus); (err != nil) != tt.wantErr {
-				t.Errorf("GetUnexpectedStatusError() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
