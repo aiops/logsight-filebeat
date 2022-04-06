@@ -4,13 +4,14 @@ go 1.17
 
 require (
 	github.com/elastic/beats/v7 v7.15.2
-	github.com/sirupsen/logrus v1.8.1
-	gotest.tools/gotestsum v0.6.0
+	github.com/google/uuid v1.3.0
+	github.com/stretchr/testify v1.7.0
 )
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elastic/elastic-agent-client/v7 v7.0.0-20210727140539-f0905d9377f6 // indirect
 	github.com/elastic/go-sysinfo v1.7.1 // indirect
 	github.com/elastic/go-ucfg v0.8.3 // indirect
@@ -25,6 +26,7 @@ require (
 	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.0.11 // indirect
 	github.com/santhosh-tekuri/jsonschema v1.2.4 // indirect
 	go.elastic.co/apm v1.11.0 // indirect
@@ -46,6 +48,7 @@ require (
 	google.golang.org/grpc v1.29.1 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 	honnef.co/go/tools v0.0.1-2019.2.3 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )
