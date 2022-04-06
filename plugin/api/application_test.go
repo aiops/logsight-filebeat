@@ -133,7 +133,7 @@ func TestApplicationApi_GetApplicationByName(t *testing.T) {
 		res.WriteHeader(http.StatusNotFound)
 		_, _ = res.Write([]byte(`{"message":"failed"}`))
 	}))
-	defer func() { testServerInvalid.Close() }()
+	defer func() { testServerErr.Close() }()
 
 	httpClient := http.DefaultClient
 	urlTestServerValid, _ := url.Parse(testServerValid.URL)

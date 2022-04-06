@@ -39,6 +39,7 @@ func Test_applicationCache_add(t *testing.T) {
 		Id:   &uuid.UUID{},
 		Name: &appName,
 	}
+	testAppEmpty := &Application{}
 	tests := []struct {
 		name   string
 		fields fields
@@ -49,6 +50,16 @@ func Test_applicationCache_add(t *testing.T) {
 			fields: fields{cache: map[string]*Application{}},
 			args:   args{application: testApp},
 		},
+		{
+			name:   "pass",
+			fields: fields{cache: map[string]*Application{}},
+			args:   args{application: testAppEmpty},
+		},
+		{
+			name:   "pass",
+			fields: fields{cache: map[string]*Application{}},
+			args:   args{application: nil},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -56,8 +67,8 @@ func Test_applicationCache_add(t *testing.T) {
 				cache: tt.fields.cache,
 			}
 			ac.add(tt.args.application)
-			if !ac.contains(appName) {
-				t.Errorf("cache must contain added application %v", testApp)
+			if tt.args.application != nil && tt.args.application.Name != nil && !ac.contains(appName) {
+				t.Errorf("cache must contain added non-nil application %v", testApp)
 				return
 			}
 		})
@@ -71,20 +82,63 @@ func Test_applicationCache_addAll(t *testing.T) {
 	type args struct {
 		applications []*Application
 	}
-	appName := "Test"
-	testApp := &Application{
+	appName1 := "Test1"
+	testApp1 := &Application{
 		Id:   &uuid.UUID{},
-		Name: &appName,
+		Name: &appName1,
+	}
+	appName2 := "Test2"
+	testApp2 := &Application{
+		Id:   &uuid.UUID{},
+		Name: &appName2,
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
+		name     string
+		fields   fields
+		args     args
+		wantSize int
 	}{
 		{
-			name:   "pass",
-			fields: fields{cache: map[string]*Application{}},
-			args:   args{applications: []*Application{testApp}},
+			name:     "pass one",
+			fields:   fields{cache: map[string]*Application{}},
+			args:     args{applications: []*Application{testApp1}},
+			wantSize: 1,
+		},
+		{
+			name:     "pass two",
+			fields:   fields{cache: map[string]*Application{}},
+			args:     args{applications: []*Application{testApp1, testApp2}},
+			wantSize: 2,
+		},
+		{
+			name:     "pass same twice",
+			fields:   fields{cache: map[string]*Application{}},
+			args:     args{applications: []*Application{testApp1, testApp1}},
+			wantSize: 1,
+		},
+		{
+			name:     "pass app default",
+			fields:   fields{cache: map[string]*Application{}},
+			args:     args{applications: []*Application{{}}},
+			wantSize: 0,
+		},
+		{
+			name:     "pass empty",
+			fields:   fields{cache: map[string]*Application{}},
+			args:     args{applications: []*Application{}},
+			wantSize: 0,
+		},
+		{
+			name:     "pass app nil",
+			fields:   fields{cache: map[string]*Application{}},
+			args:     args{applications: []*Application{nil}},
+			wantSize: 0,
+		},
+		{
+			name:     "pass nil",
+			fields:   fields{cache: map[string]*Application{}},
+			args:     args{applications: nil},
+			wantSize: 0,
 		},
 	}
 	for _, tt := range tests {
@@ -93,8 +147,8 @@ func Test_applicationCache_addAll(t *testing.T) {
 				cache: tt.fields.cache,
 			}
 			ac.addAll(tt.args.applications)
-			if !ac.contains(appName) {
-				t.Errorf("cache must contain added application %v", testApp)
+			if len(ac.getAll()) != tt.wantSize {
+				t.Errorf("cache must contain %v added applications", tt.wantSize)
 				return
 			}
 		})
