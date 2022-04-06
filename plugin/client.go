@@ -13,12 +13,13 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // Client struct
 type Client struct {
 	logBatchMapper *mapper.LogBatchMapper
-	logSender      api.SenderInterface
+	logSender      api.LogSender
 	observer       *outputs.Observer
 	logger         *logp.Logger
 }
@@ -31,8 +32,8 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 	}
 	var dialer, tlsDialer transport.Dialer
 
-	dialer = transport.NetDialer(0)
-	tlsDialer = transport.TLSDialer(dialer, tlsConfig, 60)
+	dialer = transport.NetDialer(60 * time.Second)
+	tlsDialer = transport.TLSDialer(dialer, tlsConfig, 60*time.Second)
 
 	if st := observer; st != nil {
 		dialer = transport.StatsDialer(dialer, st)
@@ -45,7 +46,7 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 			DialTLS: tlsDialer.Dial,
 			Proxy:   proxy,
 		},
-		Timeout: 0,
+		Timeout: 60 * time.Second,
 	}
 
 	baseApi := &api.BaseApi{HttpClient: httpClient, Url: hostURL}
@@ -58,11 +59,17 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 	applicationApiCacheProxy := api.NewApplicationApiCacheProxy(applicationApi)
 	logApi := &api.LogApi{BaseApi: baseApi, User: user}
 
-	var logSender api.SenderInterface
-	if config.Application.AutoCreate {
-		logSender = &api.AutoCreateSender{Sender: api.Sender{LogApi: logApi, ApplicationApi: applicationApiCacheProxy}}
+	var missingAppHandler api.MissingApplicationHandler
+	if config.Application.autoCreate {
+		logger.Infof("Using AutoCreate application log sender.")
+		missingAppHandler = api.AutoCreateMissingApplication{ApplicationApi: applicationApiCacheProxy}
 	} else {
-		logSender = &api.Sender{LogApi: logApi, ApplicationApi: applicationApiCacheProxy}
+		logger.Infof("Using default log sender.")
+		missingAppHandler = api.ErrorOnMissingApplication{ApplicationApi: applicationApiCacheProxy}
+	}
+	logSender := api.LogSender{
+		LogApi:            logApi,
+		MissingAppHandler: missingAppHandler,
 	}
 
 	// Create mappers
@@ -166,6 +173,7 @@ func (c Client) publish(logBatches []*mapper.MappedLogBatch) ([]publisher.Event,
 	var allErr error
 	for _, mappedLogBatch := range logBatches {
 		if err := c.logSender.Send(mappedLogBatch.LogBatch); err != nil {
+			c.logger.Infof("%v", err)
 			if c.isRetryError(err) {
 				resend = append(resend, mappedLogBatch.Events...)
 				allErr = fmt.Errorf("%w; %v", allErr, err)

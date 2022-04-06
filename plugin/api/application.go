@@ -18,7 +18,11 @@ var (
 
 type Application struct {
 	Id   *uuid.UUID `json:"applicationId"`
-	Name *string    `json:"applicationName"`
+	Name *string    `json:"name"`
+}
+
+type applicationsResponse struct {
+	Applications []*Application `json:"applications"`
 }
 
 type CreateApplicationRequest struct {
@@ -59,30 +63,42 @@ func (aa *ApplicationApi) GetApplications() ([]*Application, error) {
 		return nil, aa.getApplicationsError(aa.GetUnexpectedStatusError(resp, http.StatusOK))
 	}
 
-	if applications, err := aa.unmarshalApplications(resp.Body); err != nil {
+	if applications, err := aa.unmarshalApplicationsResponse(resp.Body); err != nil {
 		return nil, aa.getApplicationsError(err)
 	} else {
 		return applications, nil
 	}
 }
 
-func (aa *ApplicationApi) unmarshalApplications(body io.ReadCloser) ([]*Application, error) {
+func (aa *ApplicationApi) unmarshalApplicationsResponse(body io.ReadCloser) ([]*Application, error) {
 	bodyBytes, err := aa.toBytes(body)
 	if err != nil {
 		return nil, err
 	}
 
-	var applications []*Application
-	if err := json.Unmarshal(bodyBytes, &applications); err != nil {
-		return nil, err
+	var applicationResponse *applicationsResponse
+	if err := json.Unmarshal(bodyBytes, &applicationResponse); err != nil {
+		return nil, fmt.Errorf("%w; failed to unmarshal %v", err, string(bodyBytes))
 	}
 
-	applicationsResult := make([]*Application, len(applications))
-	for i, application := range applications {
-		applicationsResult[i] = application
+	if applicationResponse.Applications == nil {
+		return nil, fmt.Errorf("failed to parse applications response %v", string(bodyBytes))
 	}
 
-	return applicationsResult, nil
+	var applicationsResult []*Application
+	for _, application := range applicationResponse.Applications {
+		if application != nil && application.Name != nil && application.Id != nil {
+			applicationsResult = append(applicationsResult, application)
+		} else {
+			break
+		}
+	}
+
+	if len(applicationsResult) != len(applicationResponse.Applications) {
+		return nil, fmt.Errorf("failed to unmarshal applications from json %v", string(bodyBytes))
+	} else {
+		return applicationsResult, nil
+	}
 }
 
 func (aa *ApplicationApi) getApplicationsError(err error) error {
@@ -113,7 +129,7 @@ func (aa *ApplicationApi) CreateApplication(createAppReq CreateApplicationReques
 	urlLogin := aa.Url
 	urlLogin.Path = fmt.Sprintf(postApplicationConf["path"], aa.User.Id.String())
 
-	req, err := aa.BuildRequestWithBasicAuth(method, urlLogin.String(), nil, aa.User.Email, aa.User.Password)
+	req, err := aa.BuildRequestWithBasicAuth(method, urlLogin.String(), createAppReq, aa.User.Email, aa.User.Password)
 	if err != nil {
 		return nil, aa.createApplicationError(createAppReq, err)
 	}
@@ -126,13 +142,13 @@ func (aa *ApplicationApi) CreateApplication(createAppReq CreateApplicationReques
 
 	if resp.StatusCode == http.StatusConflict {
 		application, err := aa.GetApplicationByName(createAppReq.Name)
-		if err != nil {
+		if err != nil || application == nil {
 			return nil, fmt.Errorf("%w; logsight reports that application %v already exists but failed to load it",
 				aa.createApplicationError(createAppReq, err), createAppReq.Name)
 		}
 		return application, nil
-	} else if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		return nil, aa.createApplicationError(createAppReq, err)
+	} else if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, aa.createApplicationError(createAppReq, aa.BaseApi.GetUnexpectedStatusError(resp, http.StatusCreated))
 	}
 
 	if application, err := aa.unmarshalApplication(resp.Body); err != nil {
@@ -148,8 +164,8 @@ func (aa *ApplicationApi) unmarshalApplication(body io.ReadCloser) (*Application
 		return nil, err
 	}
 
-	var application Application
-	if err := json.Unmarshal(bodyBytes, &application); err != nil {
+	var application *Application
+	if err := json.Unmarshal(bodyBytes, application); err != nil {
 		return nil, err
 	}
 
@@ -161,7 +177,7 @@ func (aa *ApplicationApi) unmarshalApplication(body io.ReadCloser) (*Application
 		return nil, fmt.Errorf("%v; application id is nil", errMsg)
 	}
 
-	return &application, nil
+	return application, nil
 }
 
 func (aa *ApplicationApi) createApplicationError(createAppReq CreateApplicationRequest, err error) error {

@@ -13,9 +13,9 @@ type logsightConfig struct {
 	Url         string            `config:"url" validate:"required"`
 	Email       string            `config:"email" validate:"required"`
 	Password    string            `config:"password" validate:"required"`
-	Application mapperConf        `config:"application"`
-	Tag         mapperConf        `config:"tag"`
-	Message     string            `config:"message" validate:"required"`
+	Application applicationConf   `config:"application"`
+	Tag         tagConf           `config:"tag"`
+	Message     string            `config:"message"`
 	Timestamp   string            `config:"timestamp"`
 	Level       string            `config:"level"`
 	TLS         *tlscommon.Config `config:"tls"`
@@ -24,11 +24,41 @@ type logsightConfig struct {
 	MaxRetries  int               `config:"max_retries"`
 }
 
-type mapperConf struct {
+type applicationConf struct {
 	Name         string `config:"name"`
 	Map          string `config:"name_map"`
 	RegexMatcher string `config:"name_regex_matcher"`
-	AutoCreate   bool
+	autoCreate   bool
+}
+
+func (ac *applicationConf) toMapper() (mapper.Mapper, error) {
+	mc := mapperConf{
+		Name:         ac.Name,
+		Map:          ac.Map,
+		RegexMatcher: ac.RegexMatcher,
+	}
+	return mc.toMapper()
+}
+
+type tagConf struct {
+	Name         string `config:"name"`
+	Map          string `config:"name_map"`
+	RegexMatcher string `config:"name_regex_matcher"`
+}
+
+func (tc *tagConf) toMapper() (mapper.Mapper, error) {
+	mc := mapperConf{
+		Name:         tc.Name,
+		Map:          tc.Map,
+		RegexMatcher: tc.RegexMatcher,
+	}
+	return mc.toMapper()
+}
+
+type mapperConf struct {
+	Name         string
+	Map          string
+	RegexMatcher string
 }
 
 func (mc *mapperConf) toMapper() (mapper.Mapper, error) {
@@ -50,20 +80,21 @@ func (mc *mapperConf) toMapper() (mapper.Mapper, error) {
 
 var (
 	defaultLogsightConfig = logsightConfig{
-		ProxyURL: "https://api.ai",
+		Url:      "",
 		Email:    "",
 		Password: "",
-		Application: mapperConf{
+		Application: applicationConf{
 			Name:         "",
 			Map:          "",
 			RegexMatcher: "",
-			AutoCreate:   true,
+			autoCreate:   true,
 		},
-		Tag: mapperConf{
+		Tag: tagConf{
 			Name:         "default",
 			Map:          "",
 			RegexMatcher: "",
 		},
+		Message:    "message",
 		Timestamp:  "",
 		Level:      "",
 		BatchSize:  50,

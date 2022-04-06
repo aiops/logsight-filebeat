@@ -12,10 +12,10 @@ import (
 )
 
 func init() {
-	outputs.RegisterType("api", makeLogsight)
+	outputs.RegisterType("logsight", makeLogsight)
 }
 
-const logSelector = "api"
+const logSelector = "logsight"
 
 func makeLogsight(
 	im outputs.IndexManager,
@@ -57,6 +57,7 @@ func makeLogsight(
 		log.Errorf("failed to load tls config %v, Error: %v", config.TLS, err)
 		return outputs.Fail(err)
 	}
+	log.Debugf("TLS config: %v", tlsConfig)
 
 	var client outputs.NetworkClient
 	client, err = NewClient(config, hostURL, proxyURL, tlsConfig, observer, log)
