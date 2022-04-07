@@ -23,12 +23,13 @@ func makeLogsight(
 	observer outputs.Observer,
 	cfg *common.Config,
 ) (outputs.Group, error) {
-	log := logp.NewLogger(logSelector)
+	logger := logp.NewLogger(logSelector)
 
 	config := defaultLogsightConfig
 	if err := cfg.Unpack(&config); err != nil {
 		return outputs.Fail(err)
 	}
+	logger.Debugf("unpacked logsight config: %v", config)
 
 	if config.Application.Name == "" {
 		if host, err := os.Hostname(); err != nil {
@@ -40,33 +41,33 @@ func makeLogsight(
 
 	proxyURL, err := parseProxyURL(config.ProxyURL)
 	if err != nil {
-		log.Errorf("invalid url format for proxy: %v, Error: %v", proxyURL, err)
+		logger.Errorf("invalid url format for proxy: %v, Error: %v", proxyURL, err)
 		return outputs.Fail(err)
 	}
 
 	host := config.Url
-	log.Infof("Creating client for host: %v", host)
+	logger.Infof("Creating client for host: %v", host)
 	hostURL, err := url.Parse(host)
 	if err != nil {
-		log.Errorf("invalid url format for host: %v, Error: %v", host, err)
+		logger.Errorf("invalid url format for host: %v, Error: %v", host, err)
 		return outputs.Fail(err)
 	}
 
 	tlsConfig, err := tlscommon.LoadTLSConfig(config.TLS)
 	if err != nil {
-		log.Errorf("failed to load tls config %v, Error: %v", config.TLS, err)
+		logger.Errorf("failed to load tls config %v, Error: %v", config.TLS, err)
 		return outputs.Fail(err)
 	}
-	log.Debugf("TLS config: %v", tlsConfig)
+	logger.Debugf("TLS config: %v", tlsConfig)
 
 	var client outputs.NetworkClient
-	client, err = NewClient(config, hostURL, proxyURL, tlsConfig, observer, log)
+	client, err = NewClient(config, hostURL, proxyURL, tlsConfig, observer, logger)
 	if err != nil {
-		log.Errorf("failed to create client from host: %v, Error: %v", host, err)
+		logger.Errorf("failed to create client from host: %v, Error: %v", host, err)
 		return outputs.Fail(err)
 	}
 	client = outputs.WithBackoff(client, 1, 60)
-	log.Infof("created client %v", client)
+	logger.Infof("created client %v", client)
 
 	return outputs.SuccessNet(false, config.BatchSize, config.MaxRetries, []outputs.NetworkClient{client})
 }

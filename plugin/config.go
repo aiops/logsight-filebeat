@@ -28,7 +28,7 @@ type applicationConf struct {
 	Name         string `config:"name"`
 	Map          string `config:"name_map"`
 	RegexMatcher string `config:"name_regex_matcher"`
-	autoCreate   bool
+	AutoCreate   bool   `config:"auto_create"`
 }
 
 func (ac *applicationConf) toMapper() (mapper.Mapper, error) {
@@ -62,6 +62,7 @@ type mapperConf struct {
 }
 
 func (mc *mapperConf) toMapper() (mapper.Mapper, error) {
+	fmt.Printf("%v, %v, %v", mc.Name, mc.Map, mc.RegexMatcher)
 	if mc.Map != "" && mc.RegexMatcher != "" {
 		expr, err := regexp.Compile(mc.RegexMatcher)
 		if err != nil {
@@ -87,7 +88,7 @@ var (
 			Name:         "",
 			Map:          "",
 			RegexMatcher: "",
-			autoCreate:   true,
+			AutoCreate:   true,
 		},
 		Tag: tagConf{
 			Name:         "default",

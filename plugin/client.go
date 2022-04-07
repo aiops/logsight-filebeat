@@ -60,11 +60,11 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 	logApi := &api.LogApi{BaseApi: baseApi, User: user}
 
 	var missingAppHandler api.MissingApplicationHandler
-	if config.Application.autoCreate {
-		logger.Infof("Using AutoCreate application log sender.")
+	if config.Application.AutoCreate {
+		logger.Debugf("using AutoCreate application log sender.")
 		missingAppHandler = api.AutoCreateMissingApplication{ApplicationApi: applicationApiCacheProxy}
 	} else {
-		logger.Infof("Using default log sender.")
+		logger.Debugf("using default log sender.")
 		missingAppHandler = api.ErrorOnMissingApplication{ApplicationApi: applicationApiCacheProxy}
 	}
 	logSender := api.LogSender{
@@ -77,11 +77,14 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 	if err != nil {
 		return nil, err
 	}
+	logger.Debugf("using application mapper %v for mapper config %v", applicationMapper, config.Application)
 	applicationNameMapper := &mapper.StringMapper{Mapper: applicationMapper}
+
 	tagMapper, err := config.Tag.toMapper()
 	if err != nil {
 		return nil, err
 	}
+	logger.Debugf("using tag mapper %v for mapper config %v", tagMapper, config.Tag)
 	tagStringMapper := &mapper.StringMapper{Mapper: tagMapper}
 	var timestampMapper *mapper.StringMapper
 	if config.Timestamp == "" {

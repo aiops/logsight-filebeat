@@ -76,7 +76,7 @@ func (aa *ApplicationApi) unmarshalApplicationsResponse(body io.ReadCloser) ([]*
 		return nil, err
 	}
 
-	var applicationResponse *applicationsResponse
+	var applicationResponse applicationsResponse
 	if err := json.Unmarshal(bodyBytes, &applicationResponse); err != nil {
 		return nil, fmt.Errorf("%w; failed to unmarshal %v", err, string(bodyBytes))
 	}
@@ -85,7 +85,7 @@ func (aa *ApplicationApi) unmarshalApplicationsResponse(body io.ReadCloser) ([]*
 		return nil, fmt.Errorf("failed to parse applications response %v", string(bodyBytes))
 	}
 
-	var applicationsResult []*Application
+	applicationsResult := []*Application{}
 	for _, application := range applicationResponse.Applications {
 		if application != nil && application.Name != nil && application.Id != nil {
 			applicationsResult = append(applicationsResult, application)
@@ -164,8 +164,8 @@ func (aa *ApplicationApi) unmarshalApplication(body io.ReadCloser) (*Application
 		return nil, err
 	}
 
-	var application *Application
-	if err := json.Unmarshal(bodyBytes, application); err != nil {
+	var application Application
+	if err := json.Unmarshal(bodyBytes, &application); err != nil {
 		return nil, err
 	}
 
@@ -177,7 +177,7 @@ func (aa *ApplicationApi) unmarshalApplication(body io.ReadCloser) (*Application
 		return nil, fmt.Errorf("%v; application id is nil", errMsg)
 	}
 
-	return application, nil
+	return &application, nil
 }
 
 func (aa *ApplicationApi) createApplicationError(createAppReq CreateApplicationRequest, err error) error {

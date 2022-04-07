@@ -95,14 +95,26 @@ func Test_applicationApiCacheProxy_CreateApplication(t *testing.T) {
 	idUUID, _ := uuid.NewRandom()
 	idStr := idUUID.String()
 	appName := "heighliner"
+	jsonApps := []byte(fmt.Sprintf(
+		`{"applications":[{"applicationId":"%v","name":"%v"}]}`, idStr, appName))
+	jsonAppsEmpty := []byte(fmt.Sprintf(`{"applications":[]}`))
 	jsonApp := []byte(fmt.Sprintf(
-		`{"applications":[{"applicationId":"%v","applicationName":"%v"}]}`, idStr, appName))
+		`{"applicationId":"%v","name":"%v"}`, idStr, appName))
 
-	testServerValid := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+	testServerAppsValid := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
-		_, _ = res.Write(jsonApp)
+		_, _ = res.Write(jsonApps)
 	}))
-	defer func() { testServerValid.Close() }()
+	defer func() { testServerAppsValid.Close() }()
+	testServerAppsEmptyApp := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		if req.Method == http.MethodGet {
+			_, _ = res.Write(jsonAppsEmpty)
+		} else {
+			_, _ = res.Write(jsonApp)
+		}
+	}))
+	defer func() { testServerAppsEmptyApp.Close() }()
 	testServerErr := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusInternalServerError)
 		_, _ = res.Write([]byte(`{"message":"failed"}`))
@@ -110,10 +122,13 @@ func Test_applicationApiCacheProxy_CreateApplication(t *testing.T) {
 	defer func() { testServerErr.Close() }()
 
 	httpClient := http.DefaultClient
-	urlTestServerValid, _ := url.Parse(testServerValid.URL)
+	urlTestServerAppsValid, _ := url.Parse(testServerAppsValid.URL)
+	urlTestServerAppsEmptyApp, _ := url.Parse(testServerAppsEmptyApp.URL)
 	urlTestServerErr, _ := url.Parse(testServerErr.URL)
-	baseApiValid := &BaseApi{HttpClient: httpClient, Url: urlTestServerValid}
-	applicationAPIValid := &ApplicationApi{BaseApi: baseApiValid, User: &User{}}
+	baseApiAppValid := &BaseApi{HttpClient: httpClient, Url: urlTestServerAppsValid}
+	baseApiAppsEmptyApp := &BaseApi{HttpClient: httpClient, Url: urlTestServerAppsEmptyApp}
+	applicationAPIAppValid := &ApplicationApi{BaseApi: baseApiAppValid, User: &User{}}
+	applicationAPIAppsEmptyApp := &ApplicationApi{BaseApi: baseApiAppsEmptyApp, User: &User{}}
 	baseApiErr := &BaseApi{HttpClient: httpClient, Url: urlTestServerErr}
 	applicationAPIErr := &ApplicationApi{BaseApi: baseApiErr, User: &User{}}
 
@@ -130,15 +145,22 @@ func Test_applicationApiCacheProxy_CreateApplication(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name:    "pass created",
+			fields:  fields{applicationAPI: applicationAPIAppValid, applicationCache: NewApplicationCache()},
+			args:    args{req: CreateApplicationRequest{Name: appName}},
+			want:    appExpected,
+			wantErr: false,
+		},
+		{
 			name:    "pass create",
-			fields:  fields{applicationAPI: applicationAPIValid, applicationCache: NewApplicationCache()},
+			fields:  fields{applicationAPI: applicationAPIAppsEmptyApp, applicationCache: NewApplicationCache()},
 			args:    args{req: CreateApplicationRequest{Name: appName}},
 			want:    appExpected,
 			wantErr: false,
 		},
 		{
 			name:    "pass already created cached",
-			fields:  fields{applicationAPI: applicationAPIValid, applicationCache: appCacheFilled},
+			fields:  fields{applicationAPI: nil, applicationCache: appCacheFilled}, // no http request should be needed
 			args:    args{req: CreateApplicationRequest{Name: appName}},
 			want:    appExpected,
 			wantErr: false,
@@ -181,7 +203,7 @@ func Test_applicationApiCacheProxy_GetApplicationByName(t *testing.T) {
 	idStr := idUUID.String()
 	appName := "heighliner"
 	jsonApp := []byte(fmt.Sprintf(
-		`{"applications":[{"applicationId":"%v","applicationName":"%v"}]}`, idStr, appName))
+		`{"applications":[{"applicationId":"%v","name":"%v"}]}`, idStr, appName))
 
 	testServerValid := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
@@ -264,7 +286,7 @@ func Test_applicationApiCacheProxy_GetApplications(t *testing.T) {
 	idStr1 := idUUID1.String()
 	appName1 := "heighliner1"
 	jsonApp := []byte(fmt.Sprintf(
-		`{"applications":[{"applicationId":"%v","applicationName":"%v"}]}`, idStr1, appName1))
+		`{"applications":[{"applicationId":"%v","name":"%v"}]}`, idStr1, appName1))
 	idUUID2 := idUUID1
 	appName2 := "heighliner2"
 

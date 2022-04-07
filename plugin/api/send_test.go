@@ -29,7 +29,7 @@ func TestApplicationNotFoundError_Error(t *testing.T) {
 	}
 }
 
-func TestAutoCreateMissingApplication_getApplicationByName(t *testing.T) {
+func TestAutoCreateMissingApplication_createMissingApplication(t *testing.T) {
 	type fields struct {
 		MissingApplicationHandler MissingApplicationHandler
 		ApplicationApi            ApplicationApiInterface
@@ -52,19 +52,19 @@ func TestAutoCreateMissingApplication_getApplicationByName(t *testing.T) {
 				MissingApplicationHandler: tt.fields.MissingApplicationHandler,
 				ApplicationApi:            tt.fields.ApplicationApi,
 			}
-			got, err := aca.getApplicationByName(tt.args.appName)
+			got, err := aca.createMissingApplication(tt.args.appName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("getApplicationByName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("createMissingApplication() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getApplicationByName() got = %v, want %v", got, tt.want)
+				t.Errorf("createMissingApplication() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestAutoCreateMissingApplication_handleMissingApplication(t *testing.T) {
+func TestAutoCreateMissingApplication_handleApplication(t *testing.T) {
 	type fields struct {
 		MissingApplicationHandler MissingApplicationHandler
 		ApplicationApi            ApplicationApiInterface
@@ -87,19 +87,19 @@ func TestAutoCreateMissingApplication_handleMissingApplication(t *testing.T) {
 				MissingApplicationHandler: tt.fields.MissingApplicationHandler,
 				ApplicationApi:            tt.fields.ApplicationApi,
 			}
-			got, err := aca.handleMissingApplication(tt.args.appName)
+			got, err := aca.handleApplication(tt.args.appName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("handleMissingApplication() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("handleApplication() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("handleMissingApplication() got = %v, want %v", got, tt.want)
+				t.Errorf("handleApplication() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestErrorOnMissingApplication_getApplicationByName(t *testing.T) {
+func TestErrorOnMissingApplication_handleApplication(t *testing.T) {
 	type fields struct {
 		MissingApplicationHandler MissingApplicationHandler
 		ApplicationApi            ApplicationApiInterface
@@ -122,48 +122,13 @@ func TestErrorOnMissingApplication_getApplicationByName(t *testing.T) {
 				MissingApplicationHandler: tt.fields.MissingApplicationHandler,
 				ApplicationApi:            tt.fields.ApplicationApi,
 			}
-			got, err := ea.getApplicationByName(tt.args.appName)
+			got, err := ea.handleApplication(tt.args.appName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("getApplicationByName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("handleApplication() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getApplicationByName() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestErrorOnMissingApplication_handleMissingApplication(t *testing.T) {
-	type fields struct {
-		MissingApplicationHandler MissingApplicationHandler
-		ApplicationApi            ApplicationApiInterface
-	}
-	type args struct {
-		appName string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *Application
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ea := ErrorOnMissingApplication{
-				MissingApplicationHandler: tt.fields.MissingApplicationHandler,
-				ApplicationApi:            tt.fields.ApplicationApi,
-			}
-			got, err := ea.handleMissingApplication(tt.args.appName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("handleMissingApplication() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("handleMissingApplication() got = %v, want %v", got, tt.want)
+				t.Errorf("handleApplication() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -246,33 +211,6 @@ func TestLogSender_Send(t *testing.T) {
 			}
 			if err := as.Send(tt.args.logBatch); (err != nil) != tt.wantErr {
 				t.Errorf("Send() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func Test_getApplicationByName(t *testing.T) {
-	type args struct {
-		appName string
-		api     ApplicationApiInterface
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *Application
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := getApplicationByName(tt.args.appName, tt.args.api)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getApplicationByName() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getApplicationByName() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
