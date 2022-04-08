@@ -18,11 +18,23 @@ var (
 
 type Application struct {
 	Id   *uuid.UUID `json:"applicationId"`
+	Name *string    `json:"applicationName"`
+}
+
+type applicationResponse struct {
+	Id   *uuid.UUID `json:"applicationId"`
 	Name *string    `json:"name"`
 }
 
+func (ar *applicationResponse) toApplications() *Application {
+	return &Application{
+		Id:   ar.Id,
+		Name: ar.Name,
+	}
+}
+
 type applicationsResponse struct {
-	Applications []*Application `json:"applications"`
+	Applications []*applicationResponse `json:"applications"`
 }
 
 type CreateApplicationRequest struct {
@@ -88,7 +100,7 @@ func (aa *ApplicationApi) unmarshalApplicationsResponse(body io.ReadCloser) ([]*
 	applicationsResult := []*Application{}
 	for _, application := range applicationResponse.Applications {
 		if application != nil && application.Name != nil && application.Id != nil {
-			applicationsResult = append(applicationsResult, application)
+			applicationsResult = append(applicationsResult, application.toApplications())
 		} else {
 			break
 		}
@@ -169,7 +181,7 @@ func (aa *ApplicationApi) unmarshalApplication(body io.ReadCloser) (*Application
 		return nil, err
 	}
 
-	errMsg := fmt.Sprintf("unmarshalling application from %v failed", bodyBytes)
+	errMsg := fmt.Sprintf("unmarshalling application from %v failed", string(bodyBytes))
 	if application.Name == nil {
 		return nil, fmt.Errorf("%v; application name is nil", errMsg)
 	}

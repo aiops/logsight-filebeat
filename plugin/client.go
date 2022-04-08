@@ -32,8 +32,8 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 	}
 	var dialer, tlsDialer transport.Dialer
 
-	dialer = transport.NetDialer(60 * time.Second)
-	tlsDialer = transport.TLSDialer(dialer, tlsConfig, 60*time.Second)
+	dialer = transport.NetDialer(config.Timeout * time.Second)
+	tlsDialer = transport.TLSDialer(dialer, tlsConfig, config.Timeout*time.Second)
 
 	if st := observer; st != nil {
 		dialer = transport.StatsDialer(dialer, st)
@@ -46,7 +46,7 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 			DialTLS: tlsDialer.Dial,
 			Proxy:   proxy,
 		},
-		Timeout: 60 * time.Second,
+		Timeout: config.Timeout * time.Second,
 	}
 
 	baseApi := &api.BaseApi{HttpClient: httpClient, Url: hostURL}
@@ -87,18 +87,18 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 	logger.Debugf("using tag mapper %v for mapper config %v", tagMapper, config.Tag)
 	tagStringMapper := &mapper.StringMapper{Mapper: tagMapper}
 	var timestampMapper *mapper.StringMapper
-	if config.Timestamp == "" {
-		timestampMapper = &mapper.StringMapper{Mapper: mapper.GeneratorMapper{Generator: mapper.ISO8601TimestampGenerator{}}}
+	if config.TimestampKey == "" {
+		timestampMapper = &mapper.StringMapper{Mapper: mapper.EventTimeMapper{}}
 	} else {
-		timestampMapper = &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.Timestamp}}
+		timestampMapper = &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.TimestampKey}}
 	}
 	var levelMapper *mapper.StringMapper
-	if config.Level == "" {
+	if config.LevelKey == "" {
 		levelMapper = &mapper.StringMapper{Mapper: mapper.ConstantStringMapper{ConstantString: DefaultLevel}}
 	} else {
-		levelMapper = &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.Level}}
+		levelMapper = &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.LevelKey}}
 	}
-	messageMapper := &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.Message}}
+	messageMapper := &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.MessageKey}}
 	metaDataMapper := &mapper.StringMapper{Mapper: mapper.ConstantStringMapper{ConstantString: ""}} // currently, not used
 
 	logMapper := &mapper.LogMapper{

@@ -40,7 +40,7 @@ type ErrorOnMissingApplication struct {
 func (ea ErrorOnMissingApplication) handleApplication(appName string) (*Application, error) {
 	application, err := ea.ApplicationApi.GetApplicationByName(appName)
 	if err != nil {
-		return nil, fmt.Errorf("%w; while handling application %v", err, appName)
+		return nil, fmt.Errorf("%w; error while handling application %v", err, appName)
 	}
 	if application == nil {
 		return nil, ApplicationNotFoundError{applicationName: appName}
@@ -63,7 +63,7 @@ func (aca AutoCreateMissingApplication) handleApplication(appName string) (*Appl
 		if err != nil {
 			return nil, fmt.Errorf("%w; error while auto-creating application %v", err, appName)
 		}
-		return nil, ApplicationNotFoundError{applicationName: appName}
+		return application, nil
 	}
 	return application, nil
 

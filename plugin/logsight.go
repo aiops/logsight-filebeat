@@ -9,6 +9,7 @@ import (
 	"github.com/elastic/beats/v7/libbeat/outputs"
 	"net/url"
 	"os"
+	"time"
 )
 
 func init() {
@@ -29,7 +30,7 @@ func makeLogsight(
 	if err := cfg.Unpack(&config); err != nil {
 		return outputs.Fail(err)
 	}
-	logger.Debugf("unpacked logsight config: %v", config)
+	logger.Debugf("unpacked logsight config: %v", config.String())
 
 	if config.Application.Name == "" {
 		if host, err := os.Hostname(); err != nil {
@@ -66,7 +67,7 @@ func makeLogsight(
 		logger.Errorf("failed to create client from host: %v, Error: %v", host, err)
 		return outputs.Fail(err)
 	}
-	client = outputs.WithBackoff(client, 1, 60)
+	client = outputs.WithBackoff(client, 10*time.Second, 60*time.Minute)
 	logger.Infof("created client %v", client)
 
 	return outputs.SuccessNet(false, config.BatchSize, config.MaxRetries, []outputs.NetworkClient{client})

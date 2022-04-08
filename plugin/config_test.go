@@ -108,7 +108,7 @@ func Test_application_toMapper(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &mapperConf{
 				Name:         tt.fields.Name,
-				Map:          tt.fields.Map,
+				Key:          tt.fields.Map,
 				RegexMatcher: tt.fields.RegexMatcher,
 			}
 			got, err := a.toMapper()

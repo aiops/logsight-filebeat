@@ -99,7 +99,7 @@ func Test_applicationApiCacheProxy_CreateApplication(t *testing.T) {
 		`{"applications":[{"applicationId":"%v","name":"%v"}]}`, idStr, appName))
 	jsonAppsEmpty := []byte(fmt.Sprintf(`{"applications":[]}`))
 	jsonApp := []byte(fmt.Sprintf(
-		`{"applicationId":"%v","name":"%v"}`, idStr, appName))
+		`{"applicationId":"%v","applicationName":"%v"}`, idStr, appName))
 
 	testServerAppsValid := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)

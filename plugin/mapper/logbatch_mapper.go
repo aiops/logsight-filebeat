@@ -54,18 +54,18 @@ func (lbm *LogBatchMapper) ToLogBatch(events []publisher.Event) ([]*MappedLogBat
 	mappedLogBatchMap := make(map[string]*MappedLogBatch)
 	failedEvents := &FailedEvents{Events: []*publisher.Event{}, Errs: []error{}}
 	for _, event := range events {
-		mapSource := event.Content.Fields
-		applicationName, err := lbm.ApplicationNameMapper.doStringMap(mapSource)
+		eventObj := event.Content
+		applicationName, err := lbm.ApplicationNameMapper.doStringMap(eventObj)
 		if err != nil {
 			failedEvents.Append(&event, err)
 			continue
 		}
-		tag, err := lbm.TagMapper.doStringMap(mapSource)
+		tag, err := lbm.TagMapper.doStringMap(eventObj)
 		if err != nil {
 			failedEvents.Append(&event, err)
 			continue
 		}
-		log, err := lbm.LogMapper.ToLog(mapSource)
+		log, err := lbm.LogMapper.ToLog(event.Content)
 		if err != nil {
 			failedEvents.Append(&event, err)
 			continue

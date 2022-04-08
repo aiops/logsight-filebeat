@@ -1,32 +1,40 @@
 package plugin
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/aiops/logsight-filebeat/plugin/mapper"
 	"github.com/elastic/beats/v7/libbeat/common/transport/tlscommon"
 	"regexp"
+	"time"
 )
 
 const DefaultLevel = "INFO"
 
 type logsightConfig struct {
-	Url         string            `config:"url" validate:"required"`
-	Email       string            `config:"email" validate:"required"`
-	Password    string            `config:"password" validate:"required"`
-	Application applicationConf   `config:"application"`
-	Tag         tagConf           `config:"tag"`
-	Message     string            `config:"message"`
-	Timestamp   string            `config:"timestamp"`
-	Level       string            `config:"level"`
-	TLS         *tlscommon.Config `config:"tls"`
-	ProxyURL    string            `config:"proxy_url"`
-	BatchSize   int               `config:"batch_size"`
-	MaxRetries  int               `config:"max_retries"`
+	Url          string            `config:"url" validate:"required"`
+	Email        string            `config:"email" validate:"required"`
+	Password     string            `config:"password" validate:"required"`
+	Application  applicationConf   `config:"application"`
+	Tag          tagConf           `config:"tag"`
+	MessageKey   string            `config:"message_key"`
+	TimestampKey string            `config:"timestamp_key"`
+	LevelKey     string            `config:"level_key"`
+	TLS          *tlscommon.Config `config:"tls"`
+	ProxyURL     string            `config:"proxy_url"`
+	BatchSize    int               `config:"batch_size"`
+	MaxRetries   int               `config:"max_retries"`
+	Timeout      time.Duration     `config:"timeout"`
+}
+
+func (lc *logsightConfig) String() string {
+	strResult, _ := json.Marshal(lc)
+	return string(strResult)
 }
 
 type applicationConf struct {
 	Name         string `config:"name"`
-	Map          string `config:"name_map"`
+	Map          string `config:"name_key"`
 	RegexMatcher string `config:"name_regex_matcher"`
 	AutoCreate   bool   `config:"auto_create"`
 }
@@ -34,7 +42,7 @@ type applicationConf struct {
 func (ac *applicationConf) toMapper() (mapper.Mapper, error) {
 	mc := mapperConf{
 		Name:         ac.Name,
-		Map:          ac.Map,
+		Key:          ac.Map,
 		RegexMatcher: ac.RegexMatcher,
 	}
 	return mc.toMapper()
@@ -42,14 +50,14 @@ func (ac *applicationConf) toMapper() (mapper.Mapper, error) {
 
 type tagConf struct {
 	Name         string `config:"name"`
-	Map          string `config:"name_map"`
+	Key          string `config:"name_key"`
 	RegexMatcher string `config:"name_regex_matcher"`
 }
 
 func (tc *tagConf) toMapper() (mapper.Mapper, error) {
 	mc := mapperConf{
 		Name:         tc.Name,
-		Map:          tc.Map,
+		Key:          tc.Key,
 		RegexMatcher: tc.RegexMatcher,
 	}
 	return mc.toMapper()
@@ -57,21 +65,20 @@ func (tc *tagConf) toMapper() (mapper.Mapper, error) {
 
 type mapperConf struct {
 	Name         string
-	Map          string
+	Key          string
 	RegexMatcher string
 }
 
 func (mc *mapperConf) toMapper() (mapper.Mapper, error) {
-	fmt.Printf("%v, %v, %v", mc.Name, mc.Map, mc.RegexMatcher)
-	if mc.Map != "" && mc.RegexMatcher != "" {
+	if mc.Key != "" && mc.RegexMatcher != "" {
 		expr, err := regexp.Compile(mc.RegexMatcher)
 		if err != nil {
 			return nil, fmt.Errorf("%w; invalid regex expression %v", err, mc.RegexMatcher)
 		}
-		keyMapper := mapper.KeyMapper{Key: mc.Map}
+		keyMapper := mapper.KeyMapper{Key: mc.Key}
 		return &mapper.KeyRegexMapper{Mapper: mapper.StringMapper{Mapper: keyMapper}, Expr: expr}, nil
-	} else if mc.Map != "" {
-		return &mapper.KeyMapper{Key: mc.Map}, nil
+	} else if mc.Key != "" {
+		return &mapper.KeyMapper{Key: mc.Key}, nil
 	} else if mc.Name != "" {
 		return &mapper.ConstantStringMapper{ConstantString: mc.Name}, nil
 	} else {
@@ -92,13 +99,14 @@ var (
 		},
 		Tag: tagConf{
 			Name:         "default",
-			Map:          "",
+			Key:          "",
 			RegexMatcher: "",
 		},
-		Message:    "message",
-		Timestamp:  "",
-		Level:      "",
-		BatchSize:  50,
-		MaxRetries: 20,
+		MessageKey:   "message",
+		TimestampKey: "",
+		LevelKey:     "",
+		BatchSize:    100,
+		MaxRetries:   20,
+		Timeout:      120,
 	}
 )

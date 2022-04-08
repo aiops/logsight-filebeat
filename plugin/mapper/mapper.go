@@ -2,13 +2,13 @@ package mapper
 
 import (
 	"fmt"
-	"github.com/elastic/beats/v7/libbeat/common"
+	"github.com/elastic/beats/v7/libbeat/beat"
 	"regexp"
 	"time"
 )
 
 type Mapper interface {
-	DoMap(common.MapStr) (interface{}, error)
+	DoMap(beat.Event) (interface{}, error)
 }
 
 // StringMapper is a wrapper around Mapper to ensure that the mapping result is a string
@@ -16,8 +16,8 @@ type StringMapper struct {
 	Mapper Mapper
 }
 
-func (sm *StringMapper) doStringMap(mapSource common.MapStr) (string, error) {
-	v, err := sm.Mapper.DoMap(mapSource)
+func (sm *StringMapper) doStringMap(event beat.Event) (string, error) {
+	v, err := sm.Mapper.DoMap(event)
 	if err != nil {
 		return "", err
 	}
@@ -35,7 +35,7 @@ type ConstantStringMapper struct {
 	ConstantString string
 }
 
-func (cm ConstantStringMapper) DoMap(common.MapStr) (interface{}, error) {
+func (cm ConstantStringMapper) DoMap(beat.Event) (interface{}, error) {
 	return cm.ConstantString, nil
 }
 
@@ -57,7 +57,7 @@ type GeneratorMapper struct {
 	Generator generator
 }
 
-func (fm GeneratorMapper) DoMap(common.MapStr) (interface{}, error) {
+func (fm GeneratorMapper) DoMap(beat.Event) (interface{}, error) {
 	timeStr, err := fm.Generator.generate()
 	if err != nil {
 		return nil, err
@@ -65,16 +65,25 @@ func (fm GeneratorMapper) DoMap(common.MapStr) (interface{}, error) {
 	return timeStr, nil
 }
 
+// GeneratorMapper expects a generator to generate values when DoMap is called.
+type EventTimeMapper struct {
+	Generator generator
+}
+
+func (etm EventTimeMapper) DoMap(event beat.Event) (interface{}, error) {
+	return fmt.Sprintf(event.Timestamp.Format(time.RFC3339)), nil
+}
+
 // KeyMapper searches for the Key in a common.MapStr object and returns the
 type KeyMapper struct {
 	Key string
 }
 
-func (km KeyMapper) DoMap(mapSource common.MapStr) (interface{}, error) {
-	if v, err := mapSource.GetValue(km.Key); err == nil {
+func (km KeyMapper) DoMap(event beat.Event) (interface{}, error) {
+	if v, err := event.GetValue(km.Key); err == nil {
 		return v, nil
 	} else {
-		return "", fmt.Errorf("Key %v not found in logp %v", km.Key, mapSource)
+		return "", fmt.Errorf("Key %v not found in logp %v", km.Key, event)
 	}
 }
 
@@ -83,8 +92,8 @@ type KeyRegexMapper struct {
 	Expr   *regexp.Regexp
 }
 
-func (krm KeyRegexMapper) DoMap(mapSource common.MapStr) (interface{}, error) {
-	value, err := krm.Mapper.doStringMap(mapSource)
+func (krm KeyRegexMapper) DoMap(event beat.Event) (interface{}, error) {
+	value, err := krm.Mapper.doStringMap(event)
 	if err != nil {
 		return "", err
 	}

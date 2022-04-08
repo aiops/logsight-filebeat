@@ -25,7 +25,7 @@ func TestApplicationApi_CreateApplication(t *testing.T) {
 	idUUID, _ := uuid.Parse(idStr)
 	appName := "heighliner"
 	jsonAppValid := []byte(fmt.Sprintf(
-		`{"applicationId":"%v","name":"%v"}`, idStr, appName))
+		`{"applicationId":"%v","applicationName":"%v"}`, idStr, appName))
 	jsonAppInvalid := []byte(fmt.Sprintf(`{"asaa":"%v","as":"%v"}`, idStr, appName))
 
 	// generate a test server, so we can capture and inspect the request
@@ -389,7 +389,7 @@ func TestApplicationApi_unmarshalApplication(t *testing.T) {
 
 	idUUID, _ := uuid.NewRandom()
 	appName := "nebukadnezar"
-	jsonApp := fmt.Sprintf(`{"applicationId":"%v","name":"%v"}`, idUUID.String(), appName)
+	jsonApp := fmt.Sprintf(`{"applicationId":"%v","applicationName":"%v"}`, idUUID.String(), appName)
 	readerPass := ioutil.NopCloser(strings.NewReader(jsonApp))
 	expectedApp := &Application{Id: &idUUID, Name: &appName}
 
