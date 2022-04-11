@@ -14,5 +14,6 @@ COPY . .
 RUN go build -o "build/filebeat" "./filebeat"
 
 FROM golang:1.17.0-alpine
+WORKDIR /
 COPY --from=build /build/build/filebeat /
-ENTRYPOINT ["/filebeat"]
+ENTRYPOINT ["/filebeat", "-e", "--strict.perms=false"]
