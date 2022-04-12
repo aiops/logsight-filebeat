@@ -1,6 +1,6 @@
 # docker build -t logsight/logsight-filebeat .
 FROM golang:1.17.0-alpine as build
-RUN apk --no-cache add curl bash git mercurial gcc g++ docker musl-dev
+RUN apk --no-cache add curl bash git mercurial gcc g++ docker musl-dev glibc-static.x86_64
 WORKDIR /build
 ENV GO111MODULE=on
 ENV GOARCH=arm64
