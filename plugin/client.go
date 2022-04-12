@@ -13,12 +13,13 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // Client struct
 type Client struct {
 	logBatchMapper *mapper.LogBatchMapper
-	logSender      api.SenderInterface
+	logSender      api.LogSender
 	observer       *outputs.Observer
 	logger         *logp.Logger
 }
@@ -31,8 +32,8 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 	}
 	var dialer, tlsDialer transport.Dialer
 
-	dialer = transport.NetDialer(0)
-	tlsDialer = transport.TLSDialer(dialer, tlsConfig, 60)
+	dialer = transport.NetDialer(config.Timeout * time.Second)
+	tlsDialer = transport.TLSDialer(dialer, tlsConfig, config.Timeout*time.Second)
 
 	if st := observer; st != nil {
 		dialer = transport.StatsDialer(dialer, st)
@@ -45,7 +46,7 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 			DialTLS: tlsDialer.Dial,
 			Proxy:   proxy,
 		},
-		Timeout: 0,
+		Timeout: config.Timeout * time.Second,
 	}
 
 	baseApi := &api.BaseApi{HttpClient: httpClient, Url: hostURL}
@@ -58,11 +59,17 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 	applicationApiCacheProxy := api.NewApplicationApiCacheProxy(applicationApi)
 	logApi := &api.LogApi{BaseApi: baseApi, User: user}
 
-	var logSender api.SenderInterface
+	var missingAppHandler api.MissingApplicationHandler
 	if config.Application.AutoCreate {
-		logSender = &api.AutoCreateSender{Sender: api.Sender{LogApi: logApi, ApplicationApi: applicationApiCacheProxy}}
+		logger.Debugf("using AutoCreate application log sender.")
+		missingAppHandler = api.AutoCreateMissingApplication{ApplicationApi: applicationApiCacheProxy}
 	} else {
-		logSender = &api.Sender{LogApi: logApi, ApplicationApi: applicationApiCacheProxy}
+		logger.Debugf("using default log sender.")
+		missingAppHandler = api.ErrorOnMissingApplication{ApplicationApi: applicationApiCacheProxy}
+	}
+	logSender := api.LogSender{
+		LogApi:            logApi,
+		MissingAppHandler: missingAppHandler,
 	}
 
 	// Create mappers
@@ -70,25 +77,28 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 	if err != nil {
 		return nil, err
 	}
+	logger.Debugf("using application mapper %v for mapper config %v", applicationMapper, config.Application)
 	applicationNameMapper := &mapper.StringMapper{Mapper: applicationMapper}
+
 	tagMapper, err := config.Tag.toMapper()
 	if err != nil {
 		return nil, err
 	}
+	logger.Debugf("using tag mapper %v for mapper config %v", tagMapper, config.Tag)
 	tagStringMapper := &mapper.StringMapper{Mapper: tagMapper}
 	var timestampMapper *mapper.StringMapper
-	if config.Timestamp == "" {
-		timestampMapper = &mapper.StringMapper{Mapper: mapper.GeneratorMapper{Generator: mapper.ISO8601TimestampGenerator{}}}
+	if config.TimestampKey == "" {
+		timestampMapper = &mapper.StringMapper{Mapper: mapper.EventTimeMapper{}}
 	} else {
-		timestampMapper = &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.Timestamp}}
+		timestampMapper = &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.TimestampKey}}
 	}
 	var levelMapper *mapper.StringMapper
-	if config.Level == "" {
+	if config.LevelKey == "" {
 		levelMapper = &mapper.StringMapper{Mapper: mapper.ConstantStringMapper{ConstantString: DefaultLevel}}
 	} else {
-		levelMapper = &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.Level}}
+		levelMapper = &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.LevelKey}}
 	}
-	messageMapper := &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.Message}}
+	messageMapper := &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.MessageKey}}
 	metaDataMapper := &mapper.StringMapper{Mapper: mapper.ConstantStringMapper{ConstantString: ""}} // currently, not used
 
 	logMapper := &mapper.LogMapper{
@@ -166,6 +176,7 @@ func (c Client) publish(logBatches []*mapper.MappedLogBatch) ([]publisher.Event,
 	var allErr error
 	for _, mappedLogBatch := range logBatches {
 		if err := c.logSender.Send(mappedLogBatch.LogBatch); err != nil {
+			c.logger.Infof("%v", err)
 			if c.isRetryError(err) {
 				resend = append(resend, mappedLogBatch.Events...)
 				allErr = fmt.Errorf("%w; %v", allErr, err)

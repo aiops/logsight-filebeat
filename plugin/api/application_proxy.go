@@ -52,7 +52,7 @@ func (cap *applicationApiCacheProxy) CreateApplication(req CreateApplicationRequ
 	} else if application != nil {
 		return application, nil
 	} else {
-		application, err := cap.applicationAPI.CreateApplication(req)
+		application, err = cap.applicationAPI.CreateApplication(req)
 		if err != nil {
 			return nil, err
 		}

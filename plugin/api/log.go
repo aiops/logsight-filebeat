@@ -81,7 +81,7 @@ func (la *LogApi) SendLogBatch(logBatchReq *LogBatchRequest) (*LogReceipt, error
 	urlLogin := la.Url
 	urlLogin.Path = postLogBatchConf["path"]
 
-	req, err := la.BuildRequestWithBasicAuth(method, urlLogin.String(), nil, la.User.Email, la.User.Password)
+	req, err := la.BuildRequestWithBasicAuth(method, urlLogin.String(), logBatchReq, la.User.Email, la.User.Password)
 	if err != nil {
 		return nil, la.sendLogBatchError(logBatchReq, err)
 	}

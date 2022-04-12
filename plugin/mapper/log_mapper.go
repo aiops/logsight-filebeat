@@ -2,7 +2,7 @@ package mapper
 
 import (
 	"github.com/aiops/logsight-filebeat/plugin/api"
-	"github.com/elastic/beats/v7/libbeat/common"
+	"github.com/elastic/beats/v7/libbeat/beat"
 	"strings"
 )
 
@@ -14,20 +14,20 @@ type LogMapper struct {
 	MetadataMapper  *StringMapper
 }
 
-func (lm *LogMapper) ToLog(mapSource common.MapStr) (*api.Log, error) {
-	timestamp, err := lm.TimestampMapper.doStringMap(mapSource)
+func (lm *LogMapper) ToLog(event beat.Event) (*api.Log, error) {
+	timestamp, err := lm.TimestampMapper.doStringMap(event)
 	if err != nil {
 		return nil, err
 	}
-	message, err := lm.MessageMapper.doStringMap(mapSource)
+	message, err := lm.MessageMapper.doStringMap(event)
 	if err != nil {
 		return nil, err
 	}
-	level, err := lm.LevelMapper.doStringMap(mapSource)
+	level, err := lm.LevelMapper.doStringMap(event)
 	if err != nil {
 		return nil, err
 	}
-	metadata, err := lm.MetadataMapper.doStringMap(mapSource)
+	metadata, err := lm.MetadataMapper.doStringMap(event)
 	if err != nil {
 		return nil, err
 	}

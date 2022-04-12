@@ -28,26 +28,65 @@ func (e ApplicationNotFoundError) Error() string {
 	return fmt.Sprintf("application %v not found", e.applicationName)
 }
 
-type SenderInterface interface {
-	Close()
-	Send(*LogBatch) error
-	handleMissingApplication(string) error
+type MissingApplicationHandler interface {
+	handleApplication(string) (*Application, error)
 }
 
-type Sender struct {
-	LogApi         *LogApi
+type ErrorOnMissingApplication struct {
+	MissingApplicationHandler
 	ApplicationApi ApplicationApiInterface
 }
 
-func (as Sender) Send(logBatch *LogBatch) error {
-	application, err := as.ApplicationApi.GetApplicationByName(logBatch.ApplicationName)
+func (ea ErrorOnMissingApplication) handleApplication(appName string) (*Application, error) {
+	application, err := ea.ApplicationApi.GetApplicationByName(appName)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("%w; error while handling application %v", err, appName)
 	}
 	if application == nil {
-		if err := as.handleMissingApplication(logBatch.ApplicationName); err != nil {
-			return err
+		return nil, ApplicationNotFoundError{applicationName: appName}
+	}
+	return application, nil
+}
+
+type AutoCreateMissingApplication struct {
+	MissingApplicationHandler
+	ApplicationApi ApplicationApiInterface
+}
+
+func (aca AutoCreateMissingApplication) handleApplication(appName string) (*Application, error) {
+	application, err := aca.ApplicationApi.GetApplicationByName(appName)
+	if err != nil {
+		return nil, fmt.Errorf("%w; while handling application %v", err, appName)
+	}
+	if application == nil {
+		application, err = aca.createMissingApplication(appName)
+		if err != nil {
+			return nil, fmt.Errorf("%w; error while auto-creating application %v", err, appName)
 		}
+		return application, nil
+	}
+	return application, nil
+
+}
+
+func (aca AutoCreateMissingApplication) createMissingApplication(appName string) (*Application, error) {
+	validName := EscapeSpecialCharsForValidApplicationName(appName)
+	application, err := aca.ApplicationApi.CreateApplication(CreateApplicationRequest{Name: validName})
+	if err != nil {
+		return nil, err
+	}
+	return application, nil
+}
+
+type LogSender struct {
+	LogApi            *LogApi
+	MissingAppHandler MissingApplicationHandler
+}
+
+func (as LogSender) Send(logBatch *LogBatch) error {
+	application, err := as.MissingAppHandler.handleApplication(logBatch.ApplicationName)
+	if err != nil {
+		return err
 	}
 
 	logBatchReq := logBatch.ToLogBatchRequest(*application.Id)
@@ -58,22 +97,6 @@ func (as Sender) Send(logBatch *LogBatch) error {
 	return nil
 }
 
-func (as Sender) Close() {
+func (as LogSender) Close() {
 	as.LogApi.HttpClient.CloseIdleConnections()
-}
-
-func (as Sender) handleMissingApplication(name string) error {
-	return &ApplicationNotFoundError{applicationName: name}
-}
-
-type AutoCreateSender struct {
-	Sender
-}
-
-func (acs AutoCreateSender) handleMissingApplication(name string) error {
-	validName := EscapeSpecialCharsForValidApplicationName(name)
-	if _, err := acs.ApplicationApi.CreateApplication(CreateApplicationRequest{Name: validName}); err != nil {
-		return err
-	}
-	return nil
 }

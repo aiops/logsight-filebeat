@@ -115,7 +115,7 @@ func TestApplicationApi_GetApplicationByName(t *testing.T) {
 	idUUID, _ := uuid.Parse(idStr)
 	appName := "heighliner"
 	jsonAppValid := []byte(fmt.Sprintf(
-		`[{"applicationId":"%v","applicationName":"%v"}]`, idStr, appName))
+		`{"applications":[{"applicationId":"%v","name":"%v"}]}`, idStr, appName))
 	jsonAppInvalid := []byte(fmt.Sprintf(`{"asaa":"%v","as":"%v"}`, idStr, appName))
 
 	// generate a test server, so we can capture and inspect the request
@@ -202,11 +202,11 @@ func TestApplicationApi_GetApplications(t *testing.T) {
 	idUUID2, _ := uuid.NewRandom()
 	appName2 := "heighliner2"
 	jsonAppValid1 := []byte(fmt.Sprintf(
-		`[{"applicationId":"%v","applicationName":"%v"}]`, idUUID1.String(), appName1))
+		`{"applications":[{"applicationId":"%v","name":"%v"}]}`, idUUID1.String(), appName1))
 	jsonAppValid2 := []byte(fmt.Sprintf(
-		`[{"applicationId":"%v","applicationName":"%v"},{"applicationId":"%v","applicationName":"%v"}]`,
+		`{"applications":[{"applicationId":"%v","name":"%v"},{"applicationId":"%v","name":"%v"}]}`,
 		idUUID1.String(), appName1, idUUID2.String(), appName2))
-	jsonAppValidEmpty := []byte(fmt.Sprintf(`[]`))
+	jsonAppValidEmpty := []byte(fmt.Sprintf(`{"applications":[]}`))
 	jsonAppInvalid := []byte(fmt.Sprintf(`{"asaa":"12","as":"1221"}`))
 
 	// generate a test server, so we can capture and inspect the request
@@ -446,19 +446,19 @@ func TestApplicationApi_unmarshalApplications(t *testing.T) {
 
 	idUUID1, _ := uuid.NewRandom()
 	appName1 := "nebukadnezar"
-	jsonApp1 := fmt.Sprintf(`[{"applicationId":"%v","applicationName":"%v"}]`, idUUID1.String(), appName1)
+	jsonApp1 := fmt.Sprintf(`{"applications":[{"applicationId":"%v","name":"%v"}]}`, idUUID1.String(), appName1)
 	readerPass1 := ioutil.NopCloser(strings.NewReader(jsonApp1))
 	expectedApp1 := []*Application{{Id: &idUUID1, Name: &appName1}}
 
 	idUUID2, _ := uuid.NewRandom()
 	appName2 := "nebukadnezar"
 	jsonApp2 := fmt.Sprintf(
-		`[{"applicationId":"%v","applicationName":"%v"},{"applicationId":"%v","applicationName":"%v"}]`,
+		`{"applications":[{"applicationId":"%v","name":"%v"},{"applicationId":"%v","name":"%v"}]}`,
 		idUUID1.String(), appName1, idUUID2.String(), appName2)
 	readerPass2 := ioutil.NopCloser(strings.NewReader(jsonApp2))
 	expectedApp2 := []*Application{{Id: &idUUID1, Name: &appName1}, {Id: &idUUID2, Name: &appName2}}
 
-	jsonAppEmpty := fmt.Sprintf(`[]`)
+	jsonAppEmpty := fmt.Sprintf(`{"applications":[]}`)
 	readerPassEmpty := ioutil.NopCloser(strings.NewReader(jsonAppEmpty))
 
 	readerFail := ioutil.NopCloser(strings.NewReader(`{"invalidKey":"invalid"}"`))
@@ -505,19 +505,19 @@ func TestApplicationApi_unmarshalApplications(t *testing.T) {
 				BaseApi: tt.fields.BaseApi,
 				User:    tt.fields.User,
 			}
-			got, err := aa.unmarshalApplications(tt.args.body)
+			got, err := aa.unmarshalApplicationsResponse(tt.args.body)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("unmarshalApplications() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("unmarshalApplicationsResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("unmarshalApplications() got = %v, want %v", got, tt.want)
+				t.Errorf("unmarshalApplicationsResponse() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestEscapeSpecialCharsForValidApplicationName(t *testing.T) {
+func TestEscapeSpecialCharsForValidname(t *testing.T) {
 	type args struct {
 		name string
 	}

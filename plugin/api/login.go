@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	loginConf = map[string]string{"method": "POST", "path": "/api/v1/auth/Login"}
+	loginConf = map[string]string{"method": "POST", "path": "/api/v1/auth/login"}
 )
 
 type LoginError struct {

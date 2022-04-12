@@ -2,6 +2,7 @@ package mapper
 
 import (
 	"fmt"
+	"github.com/elastic/beats/v7/libbeat/beat"
 	"github.com/elastic/beats/v7/libbeat/common"
 	"regexp"
 	"testing"
@@ -14,7 +15,7 @@ func TestConstantMapper_doMap(t *testing.T) {
 		constantString string
 	}
 	type args struct {
-		ignored common.MapStr
+		event beat.Event
 	}
 	testMap := common.MapStr{
 		"Key": common.MapStr{
@@ -23,6 +24,7 @@ func TestConstantMapper_doMap(t *testing.T) {
 		"key3": "value2",
 		"key4": 4,
 	}
+	testEvent := beat.Event{Fields: testMap}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -33,7 +35,7 @@ func TestConstantMapper_doMap(t *testing.T) {
 		{
 			name:    "pass",
 			fields:  fields{constantString: "app_name"},
-			args:    args{ignored: testMap},
+			args:    args{event: testEvent},
 			want:    "app_name",
 			wantErr: false,
 		},
@@ -43,7 +45,7 @@ func TestConstantMapper_doMap(t *testing.T) {
 			cm := &ConstantStringMapper{
 				ConstantString: tt.fields.constantString,
 			}
-			got, err := cm.DoMap(tt.args.ignored)
+			got, err := cm.DoMap(tt.args.event)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DoMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -60,7 +62,7 @@ func TestKeyMapper_doMap(t *testing.T) {
 		key string
 	}
 	type args struct {
-		mapSource common.MapStr
+		event beat.Event
 	}
 	testMap := common.MapStr{
 		"Key": common.MapStr{
@@ -69,6 +71,7 @@ func TestKeyMapper_doMap(t *testing.T) {
 		"key3": "value2",
 		"key4": 4,
 	}
+	testEvent := beat.Event{Fields: testMap}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -79,28 +82,28 @@ func TestKeyMapper_doMap(t *testing.T) {
 		{
 			name:    "pass simple Key",
 			fields:  fields{"key3"},
-			args:    args{testMap},
+			args:    args{event: testEvent},
 			want:    "value2",
 			wantErr: false,
 		},
 		{
 			name:    "pass nested Key",
 			fields:  fields{"Key.key1"},
-			args:    args{testMap},
+			args:    args{event: testEvent},
 			want:    "value1",
 			wantErr: false,
 		},
 		{
 			name:    "pass value is not a string",
 			fields:  fields{"Key"},
-			args:    args{testMap},
+			args:    args{event: testEvent},
 			want:    common.MapStr{"key1": "value1"},
 			wantErr: false,
 		},
 		{
 			name:    "fail Key not found",
 			fields:  fields{"key5"},
-			args:    args{testMap},
+			args:    args{event: testEvent},
 			want:    "",
 			wantErr: true,
 		},
@@ -110,7 +113,7 @@ func TestKeyMapper_doMap(t *testing.T) {
 			km := &KeyMapper{
 				Key: tt.fields.key,
 			}
-			got, err := km.DoMap(tt.args.mapSource)
+			got, err := km.DoMap(tt.args.event)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DoMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -132,7 +135,7 @@ func TestKeyRegexMapper_doMap(t *testing.T) {
 		},
 	}
 	type args struct {
-		mapSource common.MapStr
+		event beat.Event
 	}
 	testMap := common.MapStr{
 		"Key": common.MapStr{
@@ -141,6 +144,7 @@ func TestKeyRegexMapper_doMap(t *testing.T) {
 		"key3": "value2",
 		"key4": 4,
 	}
+	testEvent := beat.Event{Fields: testMap}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -151,7 +155,7 @@ func TestKeyRegexMapper_doMap(t *testing.T) {
 		{
 			name:    "pass",
 			fields:  fields{mapper: stringMapper, expr: regexp.MustCompile("va(.*)e")},
-			args:    args{mapSource: testMap},
+			args:    args{event: testEvent},
 			want:    "lu",
 			wantErr: false,
 		},
@@ -162,7 +166,7 @@ func TestKeyRegexMapper_doMap(t *testing.T) {
 				Mapper: tt.fields.mapper,
 				Expr:   tt.fields.expr,
 			}
-			got, err := krm.DoMap(tt.args.mapSource)
+			got, err := krm.DoMap(tt.args.event)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DoMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -240,7 +244,7 @@ func TestStringMapper_doStringMap(t *testing.T) {
 		mapper Mapper
 	}
 	type args struct {
-		mapSource common.MapStr
+		event beat.Event
 	}
 	testMap := common.MapStr{
 		"Key": common.MapStr{
@@ -249,6 +253,7 @@ func TestStringMapper_doStringMap(t *testing.T) {
 		"key3": "value2",
 		"key4": 4,
 	}
+	testEvent := beat.Event{Fields: testMap}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -259,21 +264,21 @@ func TestStringMapper_doStringMap(t *testing.T) {
 		{
 			name:    "pass",
 			fields:  fields{mapper: &ConstantStringMapper{ConstantString: "test"}},
-			args:    args{mapSource: testMap},
+			args:    args{event: testEvent},
 			want:    "test",
 			wantErr: false,
 		},
 		{
 			name:    "pass Empty string",
 			fields:  fields{mapper: &ConstantStringMapper{ConstantString: ""}},
-			args:    args{mapSource: testMap},
+			args:    args{event: testEvent},
 			want:    "",
 			wantErr: false,
 		},
 		{
 			name:    "fail int",
 			fields:  fields{mapper: &KeyMapper{"key4"}},
-			args:    args{mapSource: testMap},
+			args:    args{event: testEvent},
 			want:    "",
 			wantErr: true,
 		},
@@ -283,12 +288,12 @@ func TestStringMapper_doStringMap(t *testing.T) {
 			sm := &StringMapper{
 				Mapper: tt.fields.mapper,
 			}
-			got, err := sm.doStringMap(tt.args.mapSource)
+			got, err := sm.doStringMap(tt.args.event)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("applyRegex() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assert.Equalf(t, tt.want, got, "doStringMap(%v)", tt.args.mapSource)
+			assert.Equalf(t, tt.want, got, "doStringMap(%v)", tt.args.event)
 		})
 	}
 }
