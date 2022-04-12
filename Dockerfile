@@ -3,6 +3,7 @@ FROM golang:1.17.0-alpine as build
 RUN apk --no-cache add curl bash git mercurial gcc g++ docker musl-dev
 WORKDIR /build
 ENV GO111MODULE=on
+GOARCH=arm64
 
 # Copy go.mod first and download dependencies, to enable the Docker build cache
 COPY go.mod .
