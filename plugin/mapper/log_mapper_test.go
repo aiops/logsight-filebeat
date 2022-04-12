@@ -2,6 +2,7 @@ package mapper
 
 import (
 	"github.com/aiops/logsight-filebeat/plugin/api"
+	"github.com/elastic/beats/v7/libbeat/beat"
 	"github.com/elastic/beats/v7/libbeat/common"
 	"testing"
 
@@ -62,10 +63,10 @@ func TestLogMapper_doMap(t *testing.T) {
 	}
 
 	type args struct {
-		mapSource common.MapStr
+		event beat.Event
 	}
 
-	testMap := common.MapStr{"key1": "value1"}
+	testEvent := beat.Event{Fields: common.MapStr{"key1": "value1"}}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -76,35 +77,35 @@ func TestLogMapper_doMap(t *testing.T) {
 		{
 			name:    "pass1",
 			fields:  logMapperFieldsPass1,
-			args:    args{mapSource: testMap},
+			args:    args{event: testEvent},
 			want:    logExpectedPass1,
 			wantErr: false,
 		},
 		{
 			name:    "pass2",
 			fields:  logMapperFieldsPass2,
-			args:    args{mapSource: testMap},
+			args:    args{event: testEvent},
 			want:    logExpectedPass2,
 			wantErr: false,
 		},
 		{
 			name:    "fail invalid level 1",
 			fields:  logMapperFieldsFailLevel1,
-			args:    args{mapSource: testMap},
+			args:    args{event: testEvent},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name:    "fail invalid level 2",
 			fields:  logMapperFieldsFailLevel2,
-			args:    args{mapSource: testMap},
+			args:    args{event: testEvent},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name:    "fail invalid time 2",
 			fields:  logMapperFieldsFailTime,
-			args:    args{mapSource: testMap},
+			args:    args{event: testEvent},
 			want:    nil,
 			wantErr: true,
 		},
@@ -117,12 +118,12 @@ func TestLogMapper_doMap(t *testing.T) {
 				LevelMapper:     tt.fields.levelMapper,
 				MetadataMapper:  tt.fields.metadataMapper,
 			}
-			got, err := lm.ToLog(tt.args.mapSource)
+			got, err := lm.ToLog(tt.args.event)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("applyRegex() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assert.Equalf(t, tt.want, got, "DoMap(%v)", tt.args.mapSource)
+			assert.Equalf(t, tt.want, got, "DoMap(%v)", tt.args.event)
 		})
 	}
 }
