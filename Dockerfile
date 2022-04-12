@@ -1,9 +1,6 @@
 # docker build -t logsight/logsight-filebeat .
-FROM golang:1.17.0-alpine as build
-RUN apk --no-cache add curl bash git mercurial gcc g++ docker musl-dev
-RUN wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
-RUN wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r0/glibc-2.35-r0.apk
-RUN apk --no-cache add glibc-2.35-r0.apk
+FROM golang:1.17.0 as build
+RUN apt-get update && apt-get install -y curl bash mercurial gcc g++ docker musl-dev gcc-aarch64-linux-gnu
 WORKDIR /build
 ENV GO111MODULE=on
 
@@ -14,9 +11,9 @@ RUN go mod download
 # Copy rest of the source code and build
 # Delete go.sum files and clean go.mod files form local 'replace' directives
 COPY . .
-RUN go build -o "build/filebeat" "./filebeat"
+RUN go build -ldflags="-w -s" -o "build/filebeat" "./filebeat"
 
-FROM golang:1.17.0-alpine
+FROM golang:1.17.0
 WORKDIR /
 COPY --from=build /build/build/filebeat /
 ENTRYPOINT ["/filebeat", "-e", "--strict.perms=false"]
