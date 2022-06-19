@@ -62,7 +62,7 @@ var (
 		MessageKey:   "message",
 		TimestampKey: "",
 		LevelKey:     "",
-		TagsMapping:  map[string]string{"service": "host"},
+		TagsMapping:  map[string]string{},
 		BatchSize:    100,
 		MaxRetries:   20,
 		Timeout:      120,

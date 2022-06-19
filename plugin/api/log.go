@@ -13,7 +13,7 @@ const levelRegex = "^INFO$|^WARNING$|^WARN$|^FINER$|^FINE$|^DEBUG$|^ERROR$|^ERR$
 const iso8601Regex = "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(([+-]\\d{2}:\\d{2})|Z)?$"
 
 var (
-	postLogBatchConf = map[string]string{"method": "POST", "path": "/api/v1/logs"}
+	postLogBatchConf = map[string]string{"method": "POST", "path": "/api/v1/logs/singles"}
 )
 
 // Log data structure used in LogBatch. It must comply with the
