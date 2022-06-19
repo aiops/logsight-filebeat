@@ -18,10 +18,10 @@ import (
 
 // Client struct
 type Client struct {
-	logBatchMapper *mapper.LogBatchMapper
-	logSender      api.LogSender
-	observer       *outputs.Observer
-	logger         *logp.Logger
+	logMapper *mapper.LogMapper
+	logSender api.LogSender
+	observer  *outputs.Observer
+	logger    *logp.Logger
 }
 
 // NewClient instantiates a client.
@@ -55,37 +55,12 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 	if err != nil {
 		return nil, err
 	}
-	applicationApi := &api.ApplicationApi{BaseApi: baseApi, User: user}
-	applicationApiCacheProxy := api.NewApplicationApiCacheProxy(applicationApi)
 	logApi := &api.LogApi{BaseApi: baseApi, User: user}
-
-	var missingAppHandler api.MissingApplicationHandler
-	if config.Application.AutoCreate {
-		logger.Debugf("using AutoCreate application log sender.")
-		missingAppHandler = api.AutoCreateMissingApplication{ApplicationApi: applicationApiCacheProxy}
-	} else {
-		logger.Debugf("using default log sender.")
-		missingAppHandler = api.ErrorOnMissingApplication{ApplicationApi: applicationApiCacheProxy}
-	}
 	logSender := api.LogSender{
-		LogApi:            logApi,
-		MissingAppHandler: missingAppHandler,
+		LogApi: logApi,
 	}
 
 	// Create mappers
-	applicationMapper, err := config.Application.toMapper()
-	if err != nil {
-		return nil, err
-	}
-	logger.Debugf("using application mapper %v for mapper config %v", applicationMapper, config.Application)
-	applicationNameMapper := &mapper.StringMapper{Mapper: applicationMapper}
-
-	tagMapper, err := config.Tag.toMapper()
-	if err != nil {
-		return nil, err
-	}
-	logger.Debugf("using tag mapper %v for mapper config %v", tagMapper, config.Tag)
-	tagStringMapper := &mapper.StringMapper{Mapper: tagMapper}
 	var timestampMapper *mapper.StringMapper
 	if config.TimestampKey == "" {
 		timestampMapper = &mapper.StringMapper{Mapper: mapper.EventTimeMapper{}}
@@ -99,26 +74,22 @@ func NewClient(config logsightConfig, hostURL *url.URL, proxyURL *url.URL, tlsCo
 		levelMapper = &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.LevelKey}}
 	}
 	messageMapper := &mapper.StringMapper{Mapper: mapper.KeyMapper{Key: config.MessageKey}}
-	metaDataMapper := &mapper.StringMapper{Mapper: mapper.ConstantStringMapper{ConstantString: ""}} // currently, not used
+	tagsMapper := &mapper.MultipleKeyValueStringMapper{
+		Mapper: mapper.MultipleKeyValueMapper{KeyValuePairs: config.TagsMapping},
+	}
 
 	logMapper := &mapper.LogMapper{
 		TimestampMapper: timestampMapper,
 		MessageMapper:   messageMapper,
 		LevelMapper:     levelMapper,
-		MetadataMapper:  metaDataMapper,
-	}
-
-	logBatchMapper := &mapper.LogBatchMapper{
-		ApplicationNameMapper: applicationNameMapper,
-		TagMapper:             tagStringMapper,
-		LogMapper:             logMapper,
+		TagsMapper:      tagsMapper,
 	}
 
 	client := &Client{
-		logBatchMapper: logBatchMapper,
-		logSender:      logSender,
-		observer:       &observer,
-		logger:         logger,
+		logMapper: logMapper,
+		logSender: logSender,
+		observer:  &observer,
+		logger:    logger,
 	}
 
 	return client, nil
@@ -140,57 +111,50 @@ func (c *Client) String() string {
 // Publish sends events to the clients sink.
 func (c *Client) Publish(_ context.Context, batch publisher.Batch) error {
 	events := batch.Events()
-	mappedLogBatches, err := c.eventsToMappedLogBatches(events)
+	mappedLogs, err := c.eventsToMappedLogs(events)
 	if err != nil {
 		c.logger.Debugf("%v", err)
 	}
-	if mappedLogBatches != nil {
-		resend, err := c.publish(mappedLogBatches)
-		if len(resend) == 0 {
+	if mappedLogs != nil {
+		err := c.publish(mappedLogs)
+		if err == nil {
 			batch.ACK()
 			return nil
 		} else {
-			batch.RetryEvents(resend)
+			batch.RetryEvents(events)
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *Client) eventsToMappedLogBatches(events []publisher.Event) ([]*mapper.MappedLogBatch, error) {
-	mappedLogBatches, failedEvents := c.logBatchMapper.ToLogBatch(events)
+func (c *Client) eventsToMappedLogs(events []publisher.Event) ([]*api.Log, error) {
+	mappedLogs, failedEvents := c.logMapper.ToLogs(events)
 	if failedEvents != nil {
-		if failedEvents.Len() == len(events) {
+		if len(failedEvents) == len(events) {
 			return nil, fmt.Errorf("mapping failed for all %v logs. errors: %v",
-				len(events), strings.Join(failedEvents.ErrorsAsStrings(), "\n"))
+				len(events), strings.Join(c.ErrorsAsStrings(failedEvents), "\n"))
 		} else {
-			return mappedLogBatches, fmt.Errorf("mapping failed for %v out of %v logs.  %v",
-				failedEvents.Len(), len(events), strings.Join(failedEvents.ErrorsAsStrings(), "\n"))
+			return mappedLogs, fmt.Errorf("mapping failed for %v out of %v logs.  %v",
+				len(failedEvents), len(events), strings.Join(c.ErrorsAsStrings(failedEvents), "\n"))
 		}
 	}
-	return mappedLogBatches, nil
+	return mappedLogs, nil
 }
 
-func (c Client) publish(logBatches []*mapper.MappedLogBatch) ([]publisher.Event, error) {
-	var resend []publisher.Event
-	var allErr error
-	for _, mappedLogBatch := range logBatches {
-		if err := c.logSender.Send(mappedLogBatch.LogBatch); err != nil {
-			c.logger.Infof("%v", err)
-			if c.isRetryError(err) {
-				resend = append(resend, mappedLogBatch.Events...)
-				allErr = fmt.Errorf("%w; %v", allErr, err)
-			}
-		}
+func (c *Client) ErrorsAsStrings(failedMappings []*mapper.FailedMapping) []string {
+	errStrings := make([]string, len(failedMappings))
+	for i, fm := range failedMappings {
+		errStrings[i] = fmt.Sprintf("%v", fm.Err)
 	}
-	if len(resend) != 0 {
-		return resend, allErr
-	} else {
-		return nil, nil
-	}
+	return errStrings
+}
+
+func (c Client) publish(logs []*api.Log) error {
+	return c.logSender.Send(logs)
 }
 
 //TODO error handling
 func (c Client) isRetryError(err error) bool {
-	return false
+	return true
 }

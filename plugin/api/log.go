@@ -19,10 +19,10 @@ var (
 // Log data structure used in LogBatch. It must comply with the
 // request body of the /api/v1/logs POST interface
 type Log struct {
-	Timestamp string `json:"timestamp" validate:"required"`
-	Message   string `json:"message" validate:"required"`
-	Level     string `json:"level" validate:"required"`
-	Metadata  string `json:"metadata" `
+	Timestamp string            `json:"timestamp" validate:"required"`
+	Message   string            `json:"message" validate:"required"`
+	Level     string            `json:"level" validate:"required"`
+	Tags      map[string]string `json:"tags" validate:"required"`
 }
 
 func (l *Log) ValidateLog() error {
@@ -53,20 +53,12 @@ func (l *Log) validateTimestamp() error {
 	}
 }
 
-// LogBatchRequest data structure used for sending requests to api. It must comply with the
-// request body of the /api/v1/logs POST interface
-type LogBatchRequest struct {
-	ApplicationId uuid.UUID `json:"applicationId" validate:"required"`
-	Tag           string    `json:"tag" validate:"required"`
-	Logs          []*Log    `json:"logs" validate:"required"`
-}
-
 // LogReceipt is returned upon sending a LogBatchRequest to the API.
 type LogReceipt struct {
-	ReceiptId     uuid.UUID `json:"receiptId"`
-	LogsCount     int       `json:"logsCount"`
-	Source        string    `json:"source"`
-	ApplicationId uuid.UUID `json:"applicationId"`
+	ReceiptId uuid.UUID `json:"receiptId"`
+	LogsCount int       `json:"logsCount"`
+	BatchId   uuid.UUID `json:"batchId"`
+	Status    int       `json:"status"`
 }
 
 type LogApi struct {
@@ -75,20 +67,20 @@ type LogApi struct {
 	User *User
 }
 
-func (la *LogApi) SendLogBatch(logBatchReq *LogBatchRequest) (*LogReceipt, error) {
+func (la *LogApi) SendLogs(logs []*Log) (*LogReceipt, error) {
 	method := postLogBatchConf["method"]
 	// Make a copy to prevent side effects
 	urlLogin := la.Url
 	urlLogin.Path = postLogBatchConf["path"]
 
-	req, err := la.BuildRequestWithBasicAuth(method, urlLogin.String(), logBatchReq, la.User.Email, la.User.Password)
+	req, err := la.BuildRequestWithBasicAuth(method, urlLogin.String(), logs, la.User.Email, la.User.Password)
 	if err != nil {
-		return nil, la.sendLogBatchError(logBatchReq, err)
+		return nil, la.sendLogBatchError(logs, err)
 	}
 
 	resp, err := la.HttpClient.Do(req)
 	if err != nil {
-		return nil, la.sendLogBatchError(logBatchReq, err)
+		return nil, la.sendLogBatchError(logs, err)
 	}
 	defer la.closing(resp.Body)
 
@@ -110,6 +102,6 @@ func (la *LogApi) unmarshalLogReceipt(body io.ReadCloser) *LogReceipt {
 	return &logReceipt
 }
 
-func (la *LogApi) sendLogBatchError(logBatchReq *LogBatchRequest, err error) error {
-	return fmt.Errorf("%w; log sending with request %v failed", err, logBatchReq)
+func (la *LogApi) sendLogBatchError(logs []*Log, err error) error {
+	return fmt.Errorf("%w; log sending with request %v failed", err, logs)
 }

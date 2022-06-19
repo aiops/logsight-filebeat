@@ -1,14 +1,12 @@
 package plugin
 
 import (
-	"github.com/aiops/logsight-filebeat/plugin/api"
 	"github.com/elastic/beats/v7/libbeat/beat"
 	"github.com/elastic/beats/v7/libbeat/common"
 	"github.com/elastic/beats/v7/libbeat/common/transport/tlscommon"
 	"github.com/elastic/beats/v7/libbeat/logp"
 	"github.com/elastic/beats/v7/libbeat/outputs"
 	"net/url"
-	"os"
 	"time"
 )
 
@@ -31,14 +29,6 @@ func makeLogsight(
 		return outputs.Fail(err)
 	}
 	logger.Debugf("unpacked logsight config: %v", config.String())
-
-	if config.Application.Name == "" {
-		if host, err := os.Hostname(); err != nil {
-			config.Application.Name = host
-		} else {
-			config.Application.Name = api.DefaultApplicationName
-		}
-	}
 
 	proxyURL, err := parseProxyURL(config.ProxyURL)
 	if err != nil {
