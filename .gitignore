@@ -52,3 +52,6 @@ logsight-filebeat
 *.pdf
 .vscode/
 build/
+
+filebeat.yml
+filebeat

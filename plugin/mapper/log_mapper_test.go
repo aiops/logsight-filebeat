@@ -14,52 +14,62 @@ func TestLogMapper_doMap(t *testing.T) {
 		timestampMapper *StringMapper
 		messageMapper   *StringMapper
 		levelMapper     *StringMapper
-		metadataMapper  *StringMapper
+		tagsMapper      *MultipleKeyValueStringMapper
 	}
 
 	logMapperFieldsPass1 := fields{
 		timestampMapper: &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "2022-04-01T20:10:57+02:00"}},
 		messageMapper:   &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
 		levelMapper:     &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "INFO"}},
-		metadataMapper:  &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
+		tagsMapper: &MultipleKeyValueStringMapper{
+			Mapper: MultipleKeyValueMapper{map[string]string{}},
+		},
 	}
 	logExpectedPass1 := &api.Log{
 		Timestamp: "2022-04-01T20:10:57+02:00",
 		Message:   "test",
 		Level:     "INFO",
-		Metadata:  "test",
+		Tags:      map[string]string{},
 	}
 
 	logMapperFieldsPass2 := fields{
 		timestampMapper: &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "2022-04-01T20:10:57"}},
 		messageMapper:   &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
 		levelMapper:     &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "INFO"}},
-		metadataMapper:  &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
+		tagsMapper: &MultipleKeyValueStringMapper{
+			Mapper: MultipleKeyValueMapper{map[string]string{}},
+		},
 	}
 	logExpectedPass2 := &api.Log{
 		Timestamp: "2022-04-01T20:10:57",
 		Message:   "test",
 		Level:     "INFO",
-		Metadata:  "test",
+		Tags:      map[string]string{},
 	}
 
 	logMapperFieldsFailLevel1 := fields{
 		timestampMapper: &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "2022-04-01T20:10:57+02:00"}},
 		messageMapper:   &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
 		levelMapper:     &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "BOGUS"}},
-		metadataMapper:  &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
+		tagsMapper: &MultipleKeyValueStringMapper{
+			Mapper: MultipleKeyValueMapper{map[string]string{}},
+		},
 	}
 	logMapperFieldsFailLevel2 := fields{
 		timestampMapper: &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "2022-04-01T20:10:57+02:00"}},
 		messageMapper:   &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
 		levelMapper:     &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "INFOINFO"}},
-		metadataMapper:  &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
+		tagsMapper: &MultipleKeyValueStringMapper{
+			Mapper: MultipleKeyValueMapper{map[string]string{}},
+		},
 	}
 	logMapperFieldsFailTime := fields{
 		timestampMapper: &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "2022-04-01"}},
 		messageMapper:   &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
 		levelMapper:     &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "INFO"}},
-		metadataMapper:  &StringMapper{Mapper: &ConstantStringMapper{ConstantString: "test"}},
+		tagsMapper: &MultipleKeyValueStringMapper{
+			Mapper: MultipleKeyValueMapper{map[string]string{}},
+		},
 	}
 
 	type args struct {
@@ -116,7 +126,9 @@ func TestLogMapper_doMap(t *testing.T) {
 				TimestampMapper: tt.fields.timestampMapper,
 				MessageMapper:   tt.fields.messageMapper,
 				LevelMapper:     tt.fields.levelMapper,
-				MetadataMapper:  tt.fields.metadataMapper,
+				TagsMapper: &MultipleKeyValueStringMapper{
+					Mapper: MultipleKeyValueMapper{map[string]string{}},
+				},
 			}
 			got, err := lm.ToLog(tt.args.event)
 			if (err != nil) != tt.wantErr {

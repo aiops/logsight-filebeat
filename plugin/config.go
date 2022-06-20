@@ -15,11 +15,10 @@ type logsightConfig struct {
 	Url          string            `config:"url" validate:"required"`
 	Email        string            `config:"email" validate:"required"`
 	Password     string            `config:"password" validate:"required"`
-	Application  applicationConf   `config:"application"`
-	Tag          tagConf           `config:"tag"`
 	MessageKey   string            `config:"message_key"`
 	TimestampKey string            `config:"timestamp_key"`
 	LevelKey     string            `config:"level_key"`
+	TagsMapping  map[string]string `config:"tags_mapping"`
 	TLS          *tlscommon.Config `config:"tls"`
 	ProxyURL     string            `config:"proxy_url"`
 	BatchSize    int               `config:"batch_size"`
@@ -30,37 +29,6 @@ type logsightConfig struct {
 func (lc *logsightConfig) String() string {
 	strResult, _ := json.Marshal(lc)
 	return string(strResult)
-}
-
-type applicationConf struct {
-	Name         string `config:"name"`
-	Map          string `config:"name_key"`
-	RegexMatcher string `config:"name_regex_matcher"`
-	AutoCreate   bool   `config:"auto_create"`
-}
-
-func (ac *applicationConf) toMapper() (mapper.Mapper, error) {
-	mc := mapperConf{
-		Name:         ac.Name,
-		Key:          ac.Map,
-		RegexMatcher: ac.RegexMatcher,
-	}
-	return mc.toMapper()
-}
-
-type tagConf struct {
-	Name         string `config:"name"`
-	Key          string `config:"name_key"`
-	RegexMatcher string `config:"name_regex_matcher"`
-}
-
-func (tc *tagConf) toMapper() (mapper.Mapper, error) {
-	mc := mapperConf{
-		Name:         tc.Name,
-		Key:          tc.Key,
-		RegexMatcher: tc.RegexMatcher,
-	}
-	return mc.toMapper()
 }
 
 type mapperConf struct {
@@ -88,23 +56,13 @@ func (mc *mapperConf) toMapper() (mapper.Mapper, error) {
 
 var (
 	defaultLogsightConfig = logsightConfig{
-		Url:      "",
-		Email:    "",
-		Password: "",
-		Application: applicationConf{
-			Name:         "",
-			Map:          "",
-			RegexMatcher: "",
-			AutoCreate:   true,
-		},
-		Tag: tagConf{
-			Name:         "default",
-			Key:          "",
-			RegexMatcher: "",
-		},
+		Url:          "",
+		Email:        "",
+		Password:     "",
 		MessageKey:   "message",
 		TimestampKey: "",
 		LevelKey:     "",
+		TagsMapping:  map[string]string{},
 		BatchSize:    100,
 		MaxRetries:   20,
 		Timeout:      120,

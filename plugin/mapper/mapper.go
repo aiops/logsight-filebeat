@@ -21,12 +21,16 @@ func (sm *StringMapper) doStringMap(event beat.Event) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	switch ty := v.(type) {
+	return sm.checkString(v)
+}
+
+func (sm *StringMapper) checkString(value interface{}) (string, error) {
+	switch ty := value.(type) {
 	case string:
-		return fmt.Sprintf("%v", v), nil
+		return fmt.Sprintf("%v", value), nil
 	default:
 		return "", fmt.Errorf("result of applying Mapper %v on string %v is not a string but %v",
-			sm.Mapper, v, ty)
+			sm.Mapper, value, ty)
 	}
 }
 
@@ -65,7 +69,7 @@ func (fm GeneratorMapper) DoMap(beat.Event) (interface{}, error) {
 	return timeStr, nil
 }
 
-// GeneratorMapper expects a generator to generate values when DoMap is called.
+// EventTimeMapper expects a generator to generate values when DoMap is called.
 type EventTimeMapper struct {
 	Generator generator
 }
@@ -74,7 +78,7 @@ func (etm EventTimeMapper) DoMap(event beat.Event) (interface{}, error) {
 	return fmt.Sprintf(event.Timestamp.Format(time.RFC3339)), nil
 }
 
-// KeyMapper searches for the Key in a common.MapStr object and returns the
+// KeyMapper searches for the Key in a common.MapStr object and returns the values
 type KeyMapper struct {
 	Key string
 }
@@ -85,6 +89,44 @@ func (km KeyMapper) DoMap(event beat.Event) (interface{}, error) {
 	} else {
 		return "", fmt.Errorf("Key %v not found in logp %v", km.Key, event)
 	}
+}
+
+// MultipleKeyValueMapper searches for all given Keys in a common.MapStr object and returns the values together with the
+// configured key values
+type MultipleKeyValueMapper struct {
+	KeyValuePairs map[string]string
+}
+
+func (mkvm MultipleKeyValueMapper) DoMap(event beat.Event) (interface{}, error) {
+	var values = make(map[string]interface{})
+	for key, valueSource := range mkvm.KeyValuePairs {
+		if v, err := event.GetValue(valueSource); err == nil {
+			values[key] = v
+		}
+	}
+	return values, nil
+}
+
+// MultipleKeyValueStringMapper is a wrapper around MultipleKeyValueMapper to ensure that the mapping results are strings
+type MultipleKeyValueStringMapper struct {
+	StringMapper
+	Mapper MultipleKeyValueMapper
+}
+
+func (msm *MultipleKeyValueStringMapper) DoMultipleStringMap(event beat.Event) (map[string]string, error) {
+	var result = make(map[string]string)
+	values, err := msm.Mapper.DoMap(event)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range values.(map[string]interface{}) {
+		// TODO better handling of failed mappings (somehow log errors later)
+		checkedValue, err := msm.checkString(v)
+		if err == nil {
+			result[k] = checkedValue
+		}
+	}
+	return result, nil
 }
 
 type KeyRegexMapper struct {
