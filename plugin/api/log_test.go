@@ -15,56 +15,56 @@ func TestLog_validateLevel(t *testing.T) {
 		Timestamp string
 		Message   string
 		Level     string
-		Metadata  string
+		Tags      map[string]string
 	}
 	testPass1 := fields{
 		Timestamp: "2022-04-04T09:00:35+00:00",
 		Message:   "Test message",
 		Level:     "INFO",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testPass2 := fields{
 		Timestamp: "2022-04-04T09:00:35+00:00",
 		Message:   "Test message",
 		Level:     "ERR",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testFailLower1 := fields{
 		Timestamp: "2022-04-04T09:00:35+00:00",
 		Message:   "Test message",
 		Level:     "info",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testFailLower2 := fields{
 		Timestamp: "2022-04-04T09:00:35+00:00",
 		Message:   "Test message",
 		Level:     "err",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 
 	testFail1 := fields{
 		Timestamp: "2022-04-04T09:00:35+00:00",
 		Message:   "Test message",
 		Level:     "errerr",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testFail2 := fields{
 		Timestamp: "2022-04-04T09:00:35+00:00",
 		Message:   "Test message",
 		Level:     "ERROR!",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testFail3 := fields{
 		Timestamp: "2022-04-04T09:00:35+00:00",
 		Message:   "Test message",
 		Level:     "",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testFail4 := fields{
 		Timestamp: "2022-04-04T09:00:35+00:00",
 		Message:   "Test message",
 		Level:     "BoGus",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 
 	tests := []struct {
@@ -119,7 +119,7 @@ func TestLog_validateLevel(t *testing.T) {
 				Timestamp: tt.fields.Timestamp,
 				Message:   tt.fields.Message,
 				Level:     tt.fields.Level,
-				Metadata:  tt.fields.Metadata,
+				Tags:      tt.fields.Tags,
 			}
 			if err := l.validateLevel(); (err != nil) != tt.wantErr {
 				t.Errorf("validateLevel() error = %v, wantErr %v", err, tt.wantErr)
@@ -133,56 +133,56 @@ func TestLog_validateTimestamp(t *testing.T) {
 		Timestamp string
 		Message   string
 		Level     string
-		Metadata  string
+		Tags      map[string]string
 	}
 	testPass1 := fields{
 		Timestamp: "2022-04-04T09:00:35+00:00",
 		Message:   "Test message",
 		Level:     "INFO",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testPass2 := fields{
 		Timestamp: "2022-04-04T09:00:35.1111+00:00",
 		Message:   "Test message",
 		Level:     "INFO",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testPass3 := fields{
 		Timestamp: "2022-04-04T09:00:35.1111",
 		Message:   "Test message",
 		Level:     "INFO",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testPass4 := fields{
 		Timestamp: "2022-04-04T09:00:35",
 		Message:   "Test message",
 		Level:     "INFO",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testPass5 := fields{
 		Timestamp: "2022-04-04T09:00:35Z",
 		Message:   "Test message",
 		Level:     "INFO",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testPass6 := fields{
 		Timestamp: "2022-04-04T09:00:35.111Z",
 		Message:   "Test message",
 		Level:     "INFO",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 
 	testFail1 := fields{
 		Timestamp: "2022-04-04T09:00",
 		Message:   "Test message",
 		Level:     "INFO",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 	testFail2 := fields{
 		Timestamp: "2022-04-04T09:00:35Z+02:00",
 		Message:   "Test message",
 		Level:     "INFO",
-		Metadata:  "",
+		Tags:      map[string]string{"default": "default"},
 	}
 
 	tests := []struct {
@@ -237,7 +237,7 @@ func TestLog_validateTimestamp(t *testing.T) {
 				Timestamp: tt.fields.Timestamp,
 				Message:   tt.fields.Message,
 				Level:     tt.fields.Level,
-				Metadata:  tt.fields.Metadata,
+				Tags:      tt.fields.Tags,
 			}
 			if err := l.validateTimestamp(); (err != nil) != tt.wantErr {
 				t.Errorf("validateTimestamp() error = %v, wantErr %v", err, tt.wantErr)
@@ -249,21 +249,18 @@ func TestLog_validateTimestamp(t *testing.T) {
 func TestLogApi_SendLogBatch(t *testing.T) {
 	idStr := "27596b04-f260-4bc0-ab02-e437a454ef90"
 	idUUID, _ := uuid.Parse(idStr)
-	logBatchRequest := &LogBatchRequest{
-		ApplicationId: idUUID,
-		Tag:           "default",
-		Logs: []*Log{{
-			Timestamp: "2022-04-04T09:00:35",
-			Message:   "Test message",
-			Level:     "INFO",
-			Metadata:  "",
-		}},
+	log := Log{
+		Timestamp: "2022-04-04T09:00:35+00:00",
+		Message:   "Test message",
+		Level:     "INFO",
+		Tags:      map[string]string{"default": "default"},
 	}
-	logReceitp := &LogReceipt{
-		ReceiptId:     idUUID,
-		LogsCount:     1,
-		Source:        "restBatch",
-		ApplicationId: idUUID,
+
+	logReceipt := &LogReceipt{
+		ReceiptId: idUUID,
+		LogsCount: 1,
+		BatchId:   idUUID,
+		Status:    0,
 	}
 
 	type fields struct {
@@ -271,12 +268,12 @@ func TestLogApi_SendLogBatch(t *testing.T) {
 		User    *User
 	}
 	type args struct {
-		logBatchReq *LogBatchRequest
+		logs []*Log
 	}
 	jsonLogReceiptValid := []byte(fmt.Sprintf(
-		`{"receiptId":"%v","logsCount":1,"source":"restBatch","applicationId":"%v"}`, idStr, idUUID))
+		`{"receiptId":"%v","logsCount":1,"batchId":"%v","status":0}`, idUUID, idUUID))
 	jsonLogReceiptInvalid := []byte(fmt.Sprintf(
-		`{"receiptId":"%v","logsCount":"1","source":"restBatch","applicationId":"%v"}`, idStr, idUUID))
+		`{"receiptId":"%v","logsCount":"1"}`, idUUID))
 
 	// generate a test server, so we can capture and inspect the request
 	testServerPassValidReceipt := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -327,35 +324,35 @@ func TestLogApi_SendLogBatch(t *testing.T) {
 		{
 			name:    "pass valid receipt",
 			fields:  fields{User: &User{}, BaseApi: baseApiPassValidReceipt},
-			args:    args{logBatchReq: logBatchRequest},
-			want:    logReceitp,
+			args:    args{logs: []*Log{&log}},
+			want:    logReceipt,
 			wantErr: false,
 		},
 		{
 			name:    "pass invalid receipt",
 			fields:  fields{User: &User{}, BaseApi: baseApiPassInvalidReceipt},
-			args:    args{logBatchReq: logBatchRequest},
+			args:    args{logs: []*Log{&log}},
 			want:    nil,
 			wantErr: false,
 		},
 		{
 			name:    "fail",
 			fields:  fields{User: &User{}, BaseApi: baseApiFail},
-			args:    args{logBatchReq: logBatchRequest},
+			args:    args{logs: []*Log{&log}},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name:    "fail retry1",
 			fields:  fields{User: &User{}, BaseApi: baseApiFailRetry1},
-			args:    args{logBatchReq: logBatchRequest},
+			args:    args{logs: []*Log{&log}},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name:    "fail retry2",
 			fields:  fields{User: &User{}, BaseApi: baseApiFailRetry2},
-			args:    args{logBatchReq: logBatchRequest},
+			args:    args{logs: []*Log{&log}},
 			want:    nil,
 			wantErr: true,
 		},
@@ -366,13 +363,13 @@ func TestLogApi_SendLogBatch(t *testing.T) {
 				BaseApi: tt.fields.BaseApi,
 				User:    tt.fields.User,
 			}
-			got, err := la.SendLogBatch(tt.args.logBatchReq)
+			got, err := la.SendLogs(tt.args.logs)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SendLogBatch() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SendLogs() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SendLogBatch() got = %v, want %v", got, tt.want)
+				t.Errorf("SendLogs() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
