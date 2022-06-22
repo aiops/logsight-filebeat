@@ -66,14 +66,14 @@ func (lm *LogMapper) ToLogs(events []publisher.Event) ([]*api.Log, []*FailedMapp
 				Event: &event,
 				Err:   &err,
 			})
-			continue
+		} else {
+			logs = append(logs, log)
 		}
-		logs = append(logs, log)
 	}
 
 	if len(failedMappings) > 0 {
-		return logs, nil
-	} else {
 		return logs, failedMappings
+	} else {
+		return logs, nil
 	}
 }
